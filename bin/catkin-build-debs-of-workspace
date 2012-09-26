@@ -1,8 +1,8 @@
-#!/bin/bash -ex
+#!/usr/bin/env bash -ex
 TOP=$(dirname $0)
 work=`pwd`
 distro=$(lsb_release -cs)
-order=$($TOP/catkin-topological-order)
+order=$($TOP/catkin_topological_order --only-folders)
 
 for x in $order
 do

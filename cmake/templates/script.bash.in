@@ -1,2 +1,4 @@
 #!/usr/bin/env bash
-@BASH_SCRIPT@ $@
+# generated from catkin/cmake/templates/script.bash.in
+
+"@BASH_SCRIPT@" "$@"

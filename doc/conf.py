@@ -11,7 +11,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys, os, subprocess
+import os
+import subprocess
+from xml.etree.ElementTree import ElementTree
 
 # -- General configuration -----------------------------------------------------
 
@@ -50,14 +52,11 @@ copyright = u'2010, Willow Garage -- ' + ' Version ' + dochash + ", " + ' '.join
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-#
-# The short X.Y version.
-import rospkg.stack
 try:
-    version = rospkg.stack.parse_stack_file('../stack.xml').version
-except Exception, e:
-    print >> sys.stderr, 'Could not extract version from your stack.xml:\n%s' % e
-    sys.exit(-1)
+    root = ElementTree(None, os.path.join('..', 'package.xml'))
+    version = root.findtext('version')
+except Exception as e:
+    raise RuntimeError('Could not extract version from package.xml:\n%s' % e)
 
 # The full version, including alpha/beta/rc tags.
 release = version

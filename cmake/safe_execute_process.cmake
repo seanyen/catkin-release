@@ -1,16 +1,13 @@
-function(safe_execute_process arg1)
-
-  set(msg ${arg1})
-  foreach(arg ${ARGN})
-    set(msg "${msg} ${arg}")
+macro(safe_execute_process cmd_keyword arg1)
+  set(_cmd ${arg1})
+  foreach(_arg ${ARGN})
+    set(_cmd "${_cmd} ${_arg}")
   endforeach()
 
-  execute_process(${ARGV}
-    RESULT_VARIABLE res)
+  debug_message(2 "execute_process(${cmd})")
+  execute_process(${ARGV} RESULT_VARIABLE _res)
 
-  log(2 "Executing ${msg}")
-  if (NOT res EQUAL 0)
-    message(FATAL_ERROR "Error executing process with arguments ${msg}")
+  if(NOT _res EQUAL 0)
+    message(FATAL_ERROR "execute_process(${_cmd}) returned error code ${_res}")
   endif()
-
-endfunction()
+endmacro()
