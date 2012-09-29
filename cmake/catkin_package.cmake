@@ -91,21 +91,6 @@ macro(catkin_package)
   # BUILD AND INSTALL DESTINATIONS
   #
 
-  # set project specific output directory for libraries
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/lib)
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/lib)
-  # set project specific output directory for binaries
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/lib/${PROJECT_NAME})
-
-  # set global install destinations
-  set(CATKIN_GLOBAL_BIN_DESTINATION bin)
-  set(CATKIN_GLOBAL_ETC_DESTINATION etc)
-  set(CATKIN_GLOBAL_INCLUDE_DESTINATION include)
-  set(CATKIN_GLOBAL_LIB_DESTINATION lib)
-  set(CATKIN_GLOBAL_LIBEXEC_DESTINATION lib)
-  set(CATKIN_GLOBAL_PYTHON_DESTINATION ${PYTHON_INSTALL_DIR})
-  set(CATKIN_GLOBAL_SHARE_DESTINATION share)
-
   # set project specific install destinations
   set(CATKIN_PACKAGE_BIN_DESTINATION ${CATKIN_GLOBAL_LIBEXEC_DESTINATION}/${PROJECT_NAME})
   set(CATKIN_PACKAGE_ETC_DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}/${PROJECT_NAME})
@@ -113,6 +98,12 @@ macro(catkin_package)
   set(CATKIN_PACKAGE_LIB_DESTINATION ${CATKIN_GLOBAL_LIB_DESTINATION})
   set(CATKIN_PACKAGE_PYTHON_DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION}/${PROJECT_NAME})
   set(CATKIN_PACKAGE_SHARE_DESTINATION ${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME})
+
+  # set project specific output directory for libraries
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION})
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION})
+  # set project specific output directory for binaries
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
   _catkin_package(${ARGN})
 endmacro()
@@ -131,11 +122,17 @@ function(_catkin_package)
     set(${PROJECT_NAME}_DIR "" CACHE PATH "" FORCE)
   endif()
 
-  # filter out DEPENDS which have not been find_package()-ed before
+  # check DEPENDS
   foreach(depend ${PROJECT_DEPENDS})
+    # filter out DEPENDS which have not been find_package()-ed before
     if(NOT ${depend}_FOUND)
       message(WARNING "catkin_package(${PROJECT_NAME}) depends on '${depend}' which has not been find_package()-ed before")
       list(REMOVE_ITEM PROJECT_DEPENDS ${depend})
+    endif()
+    # verify that all DEPENDS are listed as runtime dependencies
+    list(FIND ${PROJECT_NAME}_RUN_DEPENDS ${depend} _index)
+    if(_index EQUAL -1)
+      message(FATAL_ERROR "catkin_package(${PROJECT_NAME}) depends on '${depend}' which must therefore be listed as a run dependency in the package.xml")
     endif()
   endforeach()
 
