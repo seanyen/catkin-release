@@ -11,7 +11,7 @@ endif()
 # use either CMAKE_PREFIX_PATH explicitly passed to CMake as a command line argument
 # or CMAKE_PREFIX_PATH from the environment
 if(NOT DEFINED CMAKE_PREFIX_PATH)
-  if($ENV{CMAKE_PREFIX_PATH})
+  if(NOT "$ENV{CMAKE_PREFIX_PATH}" STREQUAL "")
     string(REPLACE ":" ";" CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})
   endif()
 endif()
@@ -94,6 +94,15 @@ foreach(filename
   )
   include(${catkin_EXTRAS_DIR}/${filename}.cmake)
 endforeach()
+
+# set global install destinations
+set(CATKIN_GLOBAL_BIN_DESTINATION bin)
+set(CATKIN_GLOBAL_ETC_DESTINATION etc)
+set(CATKIN_GLOBAL_INCLUDE_DESTINATION include)
+set(CATKIN_GLOBAL_LIB_DESTINATION lib)
+set(CATKIN_GLOBAL_LIBEXEC_DESTINATION lib)
+set(CATKIN_GLOBAL_PYTHON_DESTINATION ${PYTHON_INSTALL_DIR})
+set(CATKIN_GLOBAL_SHARE_DESTINATION share)
 
 # undefine CATKIN_ENV since it might be set in the cache from a previous build
 set(CATKIN_ENV "" CACHE INTERNAL "catkin environment" FORCE)
