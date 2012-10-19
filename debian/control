@@ -1,0 +1,12 @@
+Source: catkin
+Section: misc
+Priority: extra
+Maintainer: Dirk Thomas <dthomas@willowgarage.com>
+Build-Depends: debhelper (>= 7.0.50~), cmake,python-argparse,python-empy,python-catkin-pkg,libgtest-dev,python-nose
+Homepage: http://www.ros.org/wiki/catkin
+Standards-Version: 3.9.2
+
+Package: catkin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, cmake,python-argparse,python-empy,python-catkin-pkg,libgtest-dev,python-nose
+Description: Low-level build system macros and infrastructure for ROS.
