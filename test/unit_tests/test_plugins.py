@@ -19,12 +19,20 @@ class PluginXmlTest(unittest.TestCase):
         package.depends = []
         result = _get_output(package, True, False)
         self.assertEqual([], result)
-        e1 = Mock(attributes={'rosfoo': 'bar'})
-        e2 = Mock(tagname='e2', attributes={'rosfoo': 'bar', 'plugin': 'mockplug1'})
+        e1 = Mock()
+        e1.attributes = {'rosfoo': 'bar'}
+        e2 = Mock()
         e2.name = 'e2'
-        d1 = Mock(attributes={'rosfoo': 'bar'})
-        d2 = Mock(tagname='d2', attributes={'rosfoo': 'bar', 'plugin': 'mockplug2'})
+        e2.tagname = 'e2'
+        e2.attributes = {'rosfoo': 'bar', 'plugin': 'mockplug1'}
+        d1 = Mock()
+        d1.attributes = {'rosfoo': 'bar'}
+        d2 = Mock()
+        d2.tagname = 'd2'
+        d2.attributes = {'rosfoo': 'bar', 'plugin': 'mockplug2'}
         package.exports = [e1, e2]
         package.depends = [d1, d2]
         result = _get_output(package, False, True)
-        self.assertEqual(['<depend package="e2"/>'], result)
+        self.assertEqual(['  <depend package="e2"/>'], result)
+        result = _get_output(package, True, False)
+        self.assertEqual(['    %s' % str(e2)], result)
