@@ -90,7 +90,10 @@ macro(catkin_package)
     message(FATAL_ERROR "catkin_package() PROJECT_NAME is set to 'Project', which is not a valid project name. You must call project() before calling catkin_package().")
   endif()
 
-  # call catkin_package_xml() if it has not been called manually before
+  # mark that catkin_package() was called in order to detect wrong order of calling with generate_messages()
+  set(${PROJECT_NAME}_CATKIN_PACKAGE TRUE)
+
+  # call catkin_package_xml() if it has not been called before
   if(NOT _CATKIN_CURRENT_PACKAGE)
     catkin_package_xml()
   endif()
@@ -120,6 +123,11 @@ function(_catkin_package)
   _parse_arguments_with_repeated_keywords(PROJECT "" "" "INCLUDE_DIRS;LIBRARIES;CFG_EXTRAS" "DEPENDS" ${ARGN})
   if(PROJECT_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "catkin_package() called with unused arguments: ${PROJECT_UNPARSED_ARGUMENTS}")
+  endif()
+
+  # prepend INCLUDE_DIRS passed using a variable
+  if(${PROJECT_NAME}_INCLUDE_DIRS)
+    list(INSERT PROJECT_INCLUDE_DIRS 0 ${${PROJECT_NAME}_INCLUDE_DIRS})
   endif()
 
   # unset previously found directory of this package, so that this package overlays the other cleanly
@@ -278,8 +286,11 @@ function(_catkin_package)
 
   # absolute path to include dir under install prefix if any include dir is set
   set(PROJECT_ABSOLUTE_INCLUDE_DIRS "")
-  if(NOT "X${PROJECT_INCLUDE_DIRS}" STREQUAL "X")
+  if(NOT "${PROJECT_INCLUDE_DIRS}" STREQUAL "")
     set(PROJECT_ABSOLUTE_INCLUDE_DIRS ${PKG_INCLUDE_PREFIX}/include)
+  endif()
+  if(PROJECT_NON_CATKIN_DEPENDS_INCLUDE_DIRS)
+    list(APPEND PROJECT_ABSOLUTE_INCLUDE_DIRS ${PROJECT_NON_CATKIN_DEPENDS_INCLUDE_DIRS})
   endif()
 
   # prepend library path of this workspace

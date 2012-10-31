@@ -21,12 +21,6 @@ function(catkin_workspace)
   # tools/libraries.cmake
   configure_shared_library_build_settings()
 
-  # get include folders from all workspaces
-  foreach(workspace ${CATKIN_WORKSPACES})
-    include_directories(${workspace}/include)
-  endforeach()
-  include_directories(BEFORE ${CATKIN_BUILD_PREFIX}/include)
-
   set(CATKIN_WHITELIST_PACKAGES "" CACHE STRING "List of ';' separated packages to build")
   set(CATKIN_BLACKLIST_PACKAGES "" CACHE STRING "List of ';' separated packages to exclude")
 
@@ -51,9 +45,6 @@ function(catkin_workspace)
     list(LENGTH CATKIN_ORDERED_PACKAGES count)
     math(EXPR range "${count} - 1")
     foreach(index RANGE ${range})
-      # ensure that no current package name is set
-      unset(_CATKIN_CURRENT_PACKAGE)
-
       list(GET CATKIN_ORDERED_PACKAGE_PATHS ${index} path)
       list(GET CATKIN_ORDERED_PACKAGES_IS_META ${index} is_meta)
       list(GET CATKIN_ORDERED_PACKAGES ${index} name)
