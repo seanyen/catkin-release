@@ -22,28 +22,31 @@ class RunTestsTest(unittest.TestCase):
             # with open(src_file, 'w') as fhand:
             #     fhand.write('foo')
             # self.assertTrue(os.path.isfile(check_file))
-            main(['true',
-                  results_file,
+            main([results_file,
+                  'true',
                   '--working-dir', rootdir])
             self.assertFalse(os.path.exists(results_file))
             self.assertTrue(os.path.exists(placeholder))
             with open(placeholder, 'r') as fhand:
                 contents = fhand.read()
             self.assertTrue(results_file in contents)
+            os.remove(placeholder)
             ###
-            main(["echo '<testsuite></testsuite>' > %s" % results_file,
-                  results_file,
+            main([results_file,
+                  "echo '<testsuite></testsuite>' > %s" % results_file,
                   '--working-dir', rootdir])
             self.assertTrue(os.path.exists(results_file))
             self.assertFalse(os.path.exists(placeholder))
+            os.remove(results_file)
             ### no working dir given
-            main(["echo '<testsuite></testsuite>' > %s" % results_file,
-                  results_file])
+            main([results_file,
+                  "echo '<testsuite></testsuite>' > %s" % results_file])
             self.assertTrue(os.path.exists(results_file))
             self.assertFalse(os.path.exists(placeholder))
+            os.remove(results_file)
             ### make sure resultsfile is deleted
-            main(['true',
-                  results_file,
+            main([results_file,
+                  'true',
                   '--working-dir', rootdir])
             self.assertFalse(os.path.exists(results_file))
             self.assertTrue(os.path.exists(placeholder))
