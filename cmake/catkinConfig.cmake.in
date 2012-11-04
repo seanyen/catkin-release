@@ -11,12 +11,7 @@
 #    contains the include dirs / library dirs / libraries of the searched component <comp>.
 
 if(CATKIN_TOPLEVEL_FIND_PACKAGE OR NOT CATKIN_TOPLEVEL)
-  # compare boolean as string since policy CMP0012 is not enabled yet
-  if("@BUILDSPACE@" STREQUAL "TRUE")
-    set(catkin_EXTRAS_DIR "@catkin_EXTRAS_DIR@")
-  else()
-    set(catkin_EXTRAS_DIR "@PKG_CMAKE_DIR@")
-  endif()
+  set(catkin_EXTRAS_DIR "@PKG_CMAKE_DIR@")
 
   # prevent multiple inclusion from repeated find_package() calls in non-workspace context
   # as long as this variable is in the scope the variables from all.cmake are also, so no need to be evaluated again
@@ -89,6 +84,8 @@ foreach(component ${catkin_FIND_COMPONENTS})
     list_append_unique(catkin_LIBRARY_DIRS ${${component}_LIBRARY_DIRS})
   endif()
 endforeach()
+list_insert_in_workspace_order(catkin_INCLUDE_DIRS ${catkin_INCLUDE_DIRS})
+list_insert_in_workspace_order(catkin_LIBRARY_DIRS ${catkin_LIBRARY_DIRS})
 
 # decrement recursion counter
 math(EXPR _CATKIN_FIND_ "${_CATKIN_FIND_} - 1")
