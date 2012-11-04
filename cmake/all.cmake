@@ -8,6 +8,23 @@ if(NOT DEFINED catkin_EXTRAS_DIR)
   message(FATAL_ERROR "catkin_EXTRAS_DIR is not set")
 endif()
 
+# define buildspace
+set(CATKIN_BUILD_PREFIX "${CMAKE_BINARY_DIR}/buildspace")
+
+# create workspace marker
+set(_sourcespaces "${CMAKE_SOURCE_DIR}")
+if(EXISTS "${CATKIN_BUILD_PREFIX}/.CATKIN_WORKSPACE")
+  # prepend to existing list of sourcespaces
+  file(READ "${CATKIN_BUILD_PREFIX}/.CATKIN_WORKSPACE" _existing_sourcespaces)
+  list(FIND _existing_sourcespaces "${CMAKE_SOURCE_DIR}" _index)
+  if(_index EQUAL -1)
+    list(INSERT _existing_sourcespaces 0 ${CMAKE_SOURCE_DIR})
+  endif()
+  set(_sourcespaces ${_existing_sourcespaces})
+endif()
+file(WRITE "${CATKIN_BUILD_PREFIX}/.CATKIN_WORKSPACE" "${_sourcespaces}")
+
+
 # use either CMAKE_PREFIX_PATH explicitly passed to CMake as a command line argument
 # or CMAKE_PREFIX_PATH from the environment
 if(NOT DEFINED CMAKE_PREFIX_PATH)
@@ -16,6 +33,8 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
   endif()
 endif()
 if(CMAKE_PREFIX_PATH)
+  # skip buildspace if it is in CMAKE_PREFIX_PATH so that it is not part of CATKIN_WORKSPACES
+  list(REMOVE_ITEM CMAKE_PREFIX_PATH ${CATKIN_BUILD_PREFIX})
   message(STATUS "Using CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 endif()
 
@@ -36,8 +55,6 @@ endif()
 # save original CMAKE_PREFIX_PATH for environment generation
 set(CMAKE_PREFIX_PATH_WITHOUT_BUILDSPACE ${CMAKE_PREFIX_PATH})
 
-# define buildspace
-set(CATKIN_BUILD_PREFIX "${CMAKE_BINARY_DIR}/buildspace")
 # prepend buildspace to CMAKE_PREFIX_PATH
 list(INSERT CMAKE_PREFIX_PATH 0 ${CATKIN_BUILD_PREFIX})
 
@@ -86,6 +103,7 @@ foreach(filename
     empy
     find_program_required
     list_append_unique
+    list_insert_in_workspace_order
     parse_arguments
     safe_execute_process
     stamp
@@ -140,6 +158,9 @@ if(CATKIN_STATIC_ENV)
 endif()
 # take snapshot of the modifications the env script causes
 # to reproduce the same changes with a static script in a fraction of the time
+set(OUTPUT_SCRIPT_DIR ${CMAKE_BINARY_DIR}/catkin_generated)
+set(PREPEND_SPACE_DIR ${CATKIN_BUILD_PREFIX})
+set(CUSTOM_PREFIX_PATH ${CMAKE_PREFIX_PATH})
 em_expand(${catkin_EXTRAS_DIR}/templates/generate_cached_env.context.py.in
   ${CMAKE_BINARY_DIR}/catkin_generated/generate_cached_env.buildspace.context.py
   ${catkin_EXTRAS_DIR}/em/generate_cached_env.py.em
@@ -152,13 +173,32 @@ set(GENERATE_ENVIRONMENT_CACHE_COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/
 # the script is generated once here and refreshed by every call to catkin_add_env_hooks()
 safe_execute_process(COMMAND ${GENERATE_ENVIRONMENT_CACHE_COMMAND})
 # environment to call external processes
-set(CATKIN_ENV ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/env_cached.${script_ext} CACHE INTERNAL "catkin environment")
+set(CATKIN_ENV ${CMAKE_BINARY_DIR}/catkin_generated/env_cached.${script_ext} CACHE INTERNAL "catkin environment")
+
+if(CATKIN_STATIC_ENV)
+  # generate cached env script for installspace when requesting a static environment
+  set(OUTPUT_SCRIPT_DIR ${CMAKE_BINARY_DIR}/catkin_generated/installspace)
+  set(PREPEND_SPACE_DIR ${CMAKE_INSTALL_PREFIX})
+  set(CUSTOM_PREFIX_PATH ${CATKIN_WORKSPACES})
+  em_expand(${catkin_EXTRAS_DIR}/templates/generate_cached_env.context.py.in
+    ${CMAKE_BINARY_DIR}/catkin_generated/generate_cached_env.installspace.context.py
+    ${catkin_EXTRAS_DIR}/em/generate_cached_env.py.em
+    ${CMAKE_BINARY_DIR}/catkin_generated/installspace/generate_cached_env.py)
+  set(cmd ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/catkin_generated/installspace/generate_cached_env.py ${_command_option})
+  safe_execute_process(COMMAND ${cmd})
+  install(PROGRAMS ${OUTPUT_SCRIPT_DIR}/env_cached.${script_ext}
+    DESTINATION .)
+endif()
 
 # add additional environment hooks
 if(CATKIN_BUILD_BINARY_PACKAGE AND NOT "${PROJECT_NAME}" STREQUAL "catkin")
   set(catkin_skip_install_env_hooks "SKIP_INSTALL")
 endif()
-catkin_add_env_hooks(05.catkin-test-results SHELLS bat sh DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
+if(CMAKE_HOST_UNIX)
+  catkin_add_env_hooks(05.catkin-test-results SHELLS sh DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
+else()
+  catkin_add_env_hooks(05.catkin-test-results SHELLS bat DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
+endif()
 
 # requires stamp and environment files
 include(${catkin_EXTRAS_DIR}/catkin_python_setup.cmake)
