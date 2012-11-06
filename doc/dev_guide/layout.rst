@@ -39,15 +39,15 @@ e.g. for package 'pkg'::
 ::
 
    build/
-      CATKIN_NO_SUBDIRS           # an empty file to guide catkin to not search in subfolders for package.xml files
+      CATKIN_IGNORE               # an empty file to guide catkin to not search in subfolders for package.xml files
       CMakeCache.txt
       cmake_install.cmake
       Makefile
 
-      buildspace/                 # the layout of that folder follows the (see install directory)
+      develspace/                 # the layout of that folder follows the (see install directory)
 
-         .CATKIN_WORKSPACE        # identifies folder as a catkin workspace
-                                  # it contains a semicolon separated list of source folders if the workspace is a buildspace
+         .catkin                  # identifies folder as a catkin devel/install space
+                                  # it contains a semicolon separated list of source folders if the workspace is a devel space
          env.sh
          setup.bash
          setup.sh
@@ -98,10 +98,10 @@ The layout of the install directory follows the `Filesystem Hierarchy Standard (
 ::
 
    /opt/ros/groovy/           # defined by the CMAKE_INSTALL_PREFIX
-                              # very similar to the buildspace folder
+                              # very similar to the devel space folder
                               # therefore in the following only the differences are mentioned
 
-      .CATKIN_WORKSPACE       # identifies folder as a catkin workspace
+      .catkin                 # identifies folder as a catkin devel/install space
                               # the file is empty which indicates that it is an installspace
 
       lib/
