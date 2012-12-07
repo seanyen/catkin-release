@@ -9,14 +9,20 @@ import os
 
 try:
     from catkin.init_workspace import init_workspace
+    from catkin.terminal_color import ansi, disable_ANSI_colors, fmt, sanitize
 except ImportError:
     # find the import relatively to make it work before installing catkin
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
     from catkin.init_workspace import init_workspace
+    from catkin.terminal_color import ansi, disable_ANSI_colors, fmt, sanitize
 
 
 def main():
     args, cmake_args, make_args = _parse_args()
+
+    # disable colors if asked
+    if args.no_color:
+        disable_ANSI_colors()
 
     # verify that the base path is known
     base_path = os.path.abspath('.')
@@ -24,6 +30,11 @@ def main():
         base_path = os.path.abspath(args.directory)
     if not os.path.exists(base_path):
         return 'The specified base path "%s" does not exist' % base_path
+
+    # verify that the base path does not contain a package
+    if os.path.exists(os.path.join(base_path, 'package.xml')):
+        return 'The specified base path "%s" contains a package but "catkin_make" must be invoked in the root of workspace.' % base_path
+
     print('Base path: %s' % base_path)
 
     # determine source space
@@ -75,9 +86,23 @@ def main():
         cmd = ['cmake', source_path, '-DCATKIN_DEVEL_PREFIX=%s' % devel_path, '-DCMAKE_INSTALL_PREFIX=%s' % install_path]
         cmd += cmake_args
         try:
-            _run_command(cmd, build_path)
+            _print_command_banner(cmd, build_path, color=not args.no_color)
+            if args.no_color:
+                _run_command(cmd, build_path)
+            else:
+                _run_command_colorized(cmd, build_path)
         except subprocess.CalledProcessError:
             return 'Invoking "cmake" failed'
+    else:
+        cmd = ['make', 'cmake_check_build_system']
+        try:
+            _print_command_banner(cmd, build_path, color=not args.no_color)
+            if args.no_color:
+                _run_command(cmd, build_path)
+            else:
+                _run_command_colorized(cmd, build_path)
+        except subprocess.CalledProcessError:
+            return 'Invoking "make cmake_check_build_system" failed'
 
     # invoke make
     cmd = ['make']
@@ -94,6 +119,7 @@ def main():
         cmd.append('-j%d' % jobs)
     cmd += make_args
     try:
+        _print_command_banner(cmd, build_path, color=not args.no_color)
         _run_command(cmd, build_path)
     except subprocess.CalledProcessError:
         return 'Invoking "make" failed'
@@ -110,6 +136,7 @@ def _parse_args(args=sys.argv[1:]):
     parser.add_argument('--build', help='The path to the build space (default "build")')
     parser.add_argument('-j', '--jobs', type=int, metavar='JOBS', nargs='?', help='Specifies the number of jobs (commands) to run simultaneously. Defaults to the environment variable ROS_PARALLEL_JOBS and falls back to the number of CPU cores.')
     parser.add_argument('--force-cmake', action='store_true', help='Invoke "cmake" even if it has been executed before')
+    parser.add_argument('--no-color', action='store_true', help='Disables colored ouput (only for catkin_make and CMake)')
 
     namespace, unknown_args = parser.parse_known_args(args)
     # support -j/--jobs without an argument which argparse can not distinguish
@@ -118,10 +145,73 @@ def _parse_args(args=sys.argv[1:]):
     return namespace, cmake_args, unknown_args
 
 
+def _colorize_line(line):
+    cline = str(sanitize(line))
+    cline = cline.replace(
+        '-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+        '-- @{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~@|'
+    )
+    if line.startswith('-- ~~'):
+        # -- ~~  -
+        cline = cline.replace('~~ ', '@{pf}~~ @|')
+        cline = cline.replace(' - ', ' - @!@{bf}')
+    if line.startswith('-- +++'):
+        # -- +++ add_subdirectory(package)
+        cline = cline.replace('+++', '@!@{gf}+++@|')
+        cline = cline.replace('add_subdirectory(', 'add_subdirectory(@!@{bf}')
+        cline = cline.replace(')', '@|)')
+        cline = cline.replace('metapackage \'', 'metapackage \'@!@{bf}')
+        cline = cline.replace('\'\n', '@|\'\n')
+    if line.startswith('WARNING'):
+        # WARNING
+        cline = ansi('yf') + cline
+    if line.startswith('CMake Warning'):
+        # CMake Warning...
+        cline = cline.replace('CMake Warning', '@{yf}@!CMake Warning@|')
+    if line.startswith('CMake Error'):
+        # CMake Error...
+        cline = cline.replace('CMake Error', '@{rf}@!CMake Error@|')
+    return fmt(cline)
+
+
+def _print_command_banner(cmd, cwd, color):
+    if color:
+        # Prepare for printing
+        cmd_str = sanitize(' '.join(cmd))
+        cwd_str = sanitize(cwd)
+        # Print command notice
+        print(fmt('@{bf}####'))
+        print(fmt('@{bf}#### Running command: @!"%s"@|@{bf} in @!"%s"' % \
+                  (cmd_str, cwd_str)))
+        print(fmt('@{bf}####'))
+    else:
+        print('####')
+        print('#### Running command: "%s" in "%s"' % (' '.join(cmd), cwd))
+        print('####')
+
+
+def _run_command_colorized(cmd, cwd):
+    # Run the command
+    proc = subprocess.Popen(
+        cmd, cwd=cwd, shell=False,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+    while True:
+        line = proc.stdout.readline().decode('utf-8')
+        if proc.returncode is not None or not line:
+            break
+        else:
+            try:
+                print(_colorize_line(line), end='')
+            except Exception as e:
+                print('<caktin_make> color formatting problem: ' + str(e),
+                      file=sys.stderr)
+    proc.wait()
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, ' '.join(cmd))
+
+
 def _run_command(cmd, cwd):
-    print('####')
-    print('#### Running command: "%s" in "%s"' % (' '.join(cmd), cwd))
-    print('####')
     subprocess.check_call(cmd, cwd=cwd)
 
 
