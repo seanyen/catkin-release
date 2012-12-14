@@ -13,6 +13,7 @@ fatal_error = False
 set(CATKIN_ORDERED_PACKAGES "")
 set(CATKIN_ORDERED_PACKAGE_PATHS "")
 set(CATKIN_ORDERED_PACKAGES_IS_META "")
+set(CATKIN_ORDERED_PACKAGES_BUILD_TYPE "")
 @[for path, package in ordered_packages]@
 @[if path is None]@
 message(FATAL_ERROR "Circular dependency in subset of packages:\n@package")
@@ -23,6 +24,13 @@ fatal_error = True
 list(APPEND CATKIN_ORDERED_PACKAGES "@(package.name)")
 list(APPEND CATKIN_ORDERED_PACKAGE_PATHS "@(path)")
 list(APPEND CATKIN_ORDERED_PACKAGES_IS_META "@(str('metapackage' in [e.tagname for e in package.exports]))")
+list(APPEND CATKIN_ORDERED_PACKAGES_BUILD_TYPE "@(str([e.content for e in package.exports if e.tagname == 'build_type'][0]) if 'build_type' in [e.tagname for e in package.exports] else 'catkin')")
+@{
+deprecated = [e for e in package.exports if e.tagname == 'deprecated']
+}@
+@[if deprecated]@
+message("WARNING: Package '@(package.name)' is deprecated@(' (%s)' % deprecated[0].content if deprecated[0].content else '')")
+@[end if]@
 @[end if]@
 @[end for]@
 

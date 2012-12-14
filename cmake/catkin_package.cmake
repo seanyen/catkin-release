@@ -140,9 +140,16 @@ function(_catkin_package)
       if(NOT ${depend_name}_FOUND_CATKIN_PROJECT)
         message(FATAL_ERROR "catkin_package() CATKIN_DEPENDS on '${depend_name}' which is not a catkin package")
       endif()
-      list(FIND ${PROJECT_NAME}_BUILD_DEPENDS ${depend_name} _index)
-      if(_index EQUAL -1)
-        message(FATAL_ERROR "catkin_package() the catkin package '${depend_name}' has been find_package()-ed but is not listed as a build dependency in the package.xml")
+      if(catkin_ALL_FOUND_COMPONENTS)
+        list(FIND catkin_ALL_FOUND_COMPONENTS ${depend_name} _index)
+      else()
+        set(_index -1)
+      endif()
+      if(NOT _index EQUAL -1)
+        list(FIND ${PROJECT_NAME}_BUILD_DEPENDS ${depend_name} _index)
+        if(_index EQUAL -1)
+          message(FATAL_ERROR "catkin_package() the catkin package '${depend_name}' has been find_package()-ed but is not listed as a build dependency in the package.xml")
+        endif()
       endif()
     endif()
     # verify that all catkin packages are listed as run dependencies
@@ -155,6 +162,9 @@ function(_catkin_package)
 
   # package version provided by package.cmake/xml
   set(PROJECT_VERSION ${${PROJECT_NAME}_VERSION})
+
+  # flag if package is deprecated provided by package.cmake/xml
+  set(PROJECT_DEPRECATED ${${PROJECT_NAME}_DEPRECATED})
 
   # get library paths from all workspaces
   set(lib_paths "")
