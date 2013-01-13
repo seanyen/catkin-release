@@ -149,7 +149,11 @@ function(_catkin_package)
     if(${depend_name}_FOUND)
       # verify that these packages are really catkin packages
       if(NOT ${depend_name}_FOUND_CATKIN_PROJECT)
-        message(FATAL_ERROR "catkin_package() CATKIN_DEPENDS on '${depend_name}' which is not a catkin package")
+        if(DEFINED ${depend_name}_CONFIG)
+          message(FATAL_ERROR "catkin_package() CATKIN_DEPENDS on '${depend_name}', which has been found in '${${depend_name}_CONFIG}', but it is not a catkin package")
+        else()
+          message(FATAL_ERROR "catkin_package() CATKIN_DEPENDS on '${depend_name}', but it is not a catkin package")
+        endif()
       endif()
       if(catkin_ALL_FOUND_COMPONENTS)
         list(FIND catkin_ALL_FOUND_COMPONENTS ${depend_name} _index)
@@ -218,18 +222,25 @@ function(_catkin_package)
       if(${_index} EQUAL ${_count})
         message(FATAL_ERROR "catkin_package() the list of libraries '${_PKG_CONFIG_LIBRARIES}' ends with '${library}' which is a build configuration keyword and must be followed by a library")
       endif()
-    else()
+    elseif(NOT "${library}" STREQUAL "")
       list(APPEND PKG_CONFIG_LIBRARIES ${library})
     endif()
     math(EXPR _index "${_index} + 1")
   endwhile()
+
+  set(PKG_CONFIG_LIBRARIES_WITH_PREFIX "")
+  foreach(library ${PKG_CONFIG_LIBRARIES})
+    if(NOT IS_ABSOLUTE ${library})
+      set(library "-l${library}")
+    endif()
+    list(APPEND PKG_CONFIG_LIBRARIES_WITH_PREFIX ${library})
+  endforeach()
 
   #
   # DEVEL SPACE
   #
 
   # used in the cmake extra files
-  set(BUILDSPACE TRUE) # this variable is only for backward compatibility
   set(DEVELSPACE TRUE)
   set(INSTALLSPACE FALSE)
 
@@ -317,7 +328,6 @@ function(_catkin_package)
   #
 
   # used in the cmake extra files
-  set(BUILDSPACE FALSE) # this variable is only for backward compatibility
   set(DEVELSPACE FALSE)
   set(INSTALLSPACE TRUE)
 
