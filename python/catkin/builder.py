@@ -36,6 +36,7 @@ import copy
 import io
 import multiprocessing
 import os
+import stat
 import subprocess
 import sys
 
@@ -56,7 +57,7 @@ def cprint(msg, end=None):
 
 
 def colorize_line(line):
-    cline = str(sanitize(line))
+    cline = sanitize(line)
     cline = cline.replace(
         '-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
         '-- @{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~@|'
@@ -116,60 +117,41 @@ def print_command_banner(cmd, cwd, color):
 
 
 def run_command_colorized(cmd, cwd, quiet=False):
+    run_command(cmd, cwd, quiet=quiet, colorize=True)
+
+
+def run_command(cmd, cwd, quiet=False, colorize=False):
+    capture = (quiet or colorize)
+    stdout_pipe = subprocess.PIPE if capture else None
+    stderr_pipe = subprocess.STDOUT if capture else None
     try:
         proc = subprocess.Popen(
             cmd, cwd=cwd, shell=False,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            stdout=stdout_pipe, stderr=stderr_pipe
         )
     except OSError as e:
         raise OSError("Failed command '%s': %s" % (cmd, e))
-    out = sys.stdout
-    if quiet:
-        out = io.StringIO()
-    while True:
-        line = proc.stdout.readline().decode('utf-8')
-        if proc.returncode is not None or not line:
-            break
-        else:
+    out = io.StringIO() if quiet else sys.stdout
+    if capture:
+        while True:
+            line = proc.stdout.readline().decode('utf8', 'replace')
+            line = unicode(line)
+            if proc.returncode is not None or not line:
+                break
             try:
-                out.write(unicode(colorize_line(line)))
+                line = colorize_line(line) if colorize else line
             except Exception as e:
                 import traceback
                 traceback.print_exc()
                 print('<caktin_make> color formatting problem: ' + str(e),
                       file=sys.stderr)
-                out.write(unicode(line))
-    proc.wait()
-    if proc.returncode:
-        if type(out) == io.StringIO:
-            print(out.getvalue())
-        raise subprocess.CalledProcessError(proc.returncode, ' '.join(cmd))
-    return out.getvalue() if type(out) == io.StringIO else ''
-
-
-def run_command(cmd, cwd, quiet=False):
-    if not quiet:
-        subprocess.check_call(cmd, cwd=cwd)
-        return ''
-    try:
-        proc = subprocess.Popen(
-            cmd, cwd=cwd, shell=False,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-    except OSError as e:
-        raise OSError("Failed command '%s': %s" % (cmd, e))
-    out = io.StringIO()
-    while True:
-        line = proc.stdout.readline().decode('utf-8')
-        if proc.returncode is not None or not line:
-            break
-        else:
             out.write(line)
     proc.wait()
     if proc.returncode:
-        print(out.getvalue())
+        if quiet:
+            print(out.getvalue())
         raise subprocess.CalledProcessError(proc.returncode, ' '.join(cmd))
-    return out.getvalue()
+    return out.getvalue() if quiet else ''
 
 blue_arrow = '@!@{bf}==>@{wf}'
 
@@ -190,6 +172,22 @@ def isolation_print_command(cmd, path=None):
             blue_arrow + " " + sanitize(cmd) + "@|" +
             (" @!@{kf}in@| '@!" + sanitize(path) + "@|'" if path else '')
         )
+
+
+def get_python_path(path):
+    python_path = []
+    lib_path = os.path.join(path, 'lib')
+    if os.path.exists(lib_path):
+        items = os.listdir(lib_path)
+        for item in items:
+            if os.path.isdir(item) and item.startswith('python'):
+                python_items = os.listdir(os.path.join(lib_path, item))
+                for py_item in python_items:
+                    if py_item in ['dist-packages', 'site-packages']:
+                        py_path = os.path.join(lib_path, item, py_item)
+                        if os.path.isdir(py_path):
+                            python_path.append(py_path)
+    return python_path
 
 
 def build_catkin_package(
@@ -219,8 +217,8 @@ def build_catkin_package(
         cmake_cmd = [
             'cmake',
             os.path.dirname(package.filename),
-            '-DCATKIN_DEVEL_PREFIX=' + develspace + '',
-            '-DCMAKE_INSTALL_PREFIX=' + installspace + ''
+            '-DCATKIN_DEVEL_PREFIX=' + develspace,
+            '-DCMAKE_INSTALL_PREFIX=' + installspace
         ]
         isolation_print_command(' '.join(cmake_cmd))
         if last_env is not None:
@@ -274,12 +272,13 @@ def build_cmake_package(
 
     # Check for Makefile and maybe call cmake
     makefile = os.path.join(build_dir, 'Makefile')
+    install_target = installspace if install else develspace
     if not os.path.exists(makefile) or force_cmake:
         # Call cmake
         cmake_cmd = [
             'cmake',
-            '-DCMAKE_INSTALL_PREFIX=' + (installspace if install else develspace),
-            os.path.dirname(package.filename)
+            os.path.dirname(package.filename),
+            '-DCMAKE_INSTALL_PREFIX=' + install_target
         ]
         isolation_print_command(' '.join(cmake_cmd))
         if last_env is not None:
@@ -309,6 +308,52 @@ def build_cmake_package(
     if last_env is not None:
         make_install_cmd = [last_env] + make_install_cmd
     run_command(make_install_cmd, build_dir, quiet)
+
+    # If we are installing, and a env_cached.sh exists, don't overwrite it
+    if install and os.path.exists(os.path.join(installspace, 'env_cached.sh')):
+        return
+    cprint(blue_arrow + " Generating an env_cached.sh")
+    # Generate basic env.sh for chaining to catkin packages
+    last_env = os.path.join(os.path.dirname(last_env), 'setup.sh')
+    new_env_path = os.path.join(install_target, 'env.sh')
+    cmake_prefix_path = install_target + ":"
+    ld_path = os.path.join(install_target, 'lib') + ":"
+    pythonpath = ":".join(get_python_path(install_target))
+    if pythonpath:
+        pythonpath += ":"
+    pkgcfg_path = os.path.join(install_target, 'lib', 'pkgconfig') + ":"
+    path = os.path.join(install_target, 'bin') + ":"
+    with open(new_env_path, 'w+') as file_handle:
+        file_handle.write("""\
+#!/bin/sh
+
+# Autogenerated from caktin.builder module
+
+. {last_env}
+
+# detect if running on Darwin platform
+UNAME=`which uname`
+UNAME=`$UNAME`
+IS_DARWIN=0
+if [ "$UNAME" = "Darwin" ]; then
+  IS_DARWIN=1
+fi
+
+# Prepend to the environment
+export CMAKE_PREFIX_PATH="{cmake_prefix_path}$CMAKE_PREFIX_PATH"
+if [ $IS_DARWIN -eq 0 ]; then
+  export LD_LIBRARY_PATH="{ld_path}$LD_LIBRARY_PATH"
+else
+  export DYLD_LIBRARY_PATH="{ld_path}$DYLD_LIBRARY_PATH"
+fi
+export PATH="{path}$PATH"
+export PKG_CONFIG_PATH="{pkgcfg_path}$PKG_CONFIG_PATH"
+export PYTHONPATH="{pythonpath}$PYTHONPATH"
+
+exec "$@"
+""".format(**locals())
+        )
+    os.chmod(new_env_path, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
 
 
 def build_package(
@@ -345,13 +390,28 @@ def build_package(
                     develspace,
                     'env.sh'
                 )
+            if not os.path.exists(new_last_env):
+                raise RuntimeError(
+                    "No env_cached.sh file generated at: " + new_last_env +
+                    "\n  This sometimes occurs when a non-catkin package is "
+                    "interpreted as a catkin package."
+                )
         elif build_type_tag == 'cmake':
             build_cmake_package(
                 path, package,
                 workspace, buildspace, develspace, installspace,
                 install, jobs, force_cmake, quiet, last_env
             )
-            new_last_env = last_env
+            if install:
+                new_last_env = os.path.join(
+                    installspace,
+                    'env.sh'
+                )
+            else:
+                new_last_env = os.path.join(
+                    develspace,
+                    'env.sh'
+                )
         else:
             sys.exit('Can not build package with unknown build_type')
     if number is not None and of is not None:
@@ -505,11 +565,12 @@ def build_workspace_isolated(
                 install, jobs, force_cmake, quiet, last_env,
                 number=index + 1, of=len(packages)
             )
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, KeyboardInterrupt) as e:
             cprint(
                 '@{rf}@!<==@| ' +
                 'Failed to process package \'@!@{bf}' +
                 package.name + '@|\': \n  ' +
-                str(e)
+                (str(e) if isinstance(e, KeyboardInterrupt)
+                        else 'KeyboardInterrupt')
             )
             sys.exit('Command failed, exiting.')
