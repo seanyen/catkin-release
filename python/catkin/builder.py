@@ -41,6 +41,7 @@ import subprocess
 import sys
 
 try:
+    from catkin_pkg.packages import find_packages
     from catkin_pkg.topological_order import topological_order
 except ImportError as e:
     sys.exit(
@@ -81,7 +82,7 @@ def colorize_line(line):
         cline = cline.replace('\'\n', '@|\'\n')
     if line.startswith('-- ==>'):
         cline = cline.replace('-- ==>', '-- @!@{bf}==>@|')
-    if line.startswith('WARNING'):
+    if line.lower().startswith('warning'):
         # WARNING
         cline = ansi('yf') + cline
     if line.startswith('CMake Warning'):
@@ -551,6 +552,13 @@ def build_workspace_isolated(
         print(colorize_line('Error: Packages with unknown build types exist'))
         sys.exit('Can not build workspace with packages of unknown build_type')
 
+    # Check to see if the workspace has changed
+    if cmake_input_changed(sourcespace, buildspace, None, 'catkin_make_isolated'):
+        force_cmake = True
+        print(colorize_line(
+            'Warning: packages or cmake arguments have changed, forcing cmake'
+        ))
+
     # Build packages
     original_develspace = copy.deepcopy(develspace)
     last_env = None
@@ -574,3 +582,31 @@ def build_workspace_isolated(
                         else 'KeyboardInterrupt')
             )
             sys.exit('Command failed, exiting.')
+
+
+def cmake_input_changed(source_path, build_path, cmake_args=None, filename='catkin_make'):
+    # get current input
+    packages = find_packages(source_path)
+    package_paths = os.pathsep.join(sorted(packages.keys()))
+    cmake_args = ' '.join(cmake_args) if cmake_args else ''
+
+    # file to store current input
+    changed = False
+    input_filename = os.path.join(build_path, '%s.cache' % filename)
+    if not os.path.exists(input_filename):
+        changed = True
+    else:
+        # compare with previously stored input
+        with open(input_filename, 'r') as f:
+            previous_package_paths = f.readline().rstrip()
+            previous_cmake_args = f.readline().rstrip()
+        if package_paths != previous_package_paths:
+            changed = True
+        if cmake_args != previous_cmake_args:
+            changed = True
+
+    # store current input for next invocation
+    with open(input_filename, 'w') as f:
+        f.write('%s\n%s' % (package_paths, cmake_args))
+
+    return changed
