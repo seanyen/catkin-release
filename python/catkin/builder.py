@@ -154,7 +154,7 @@ def run_command(cmd, cwd, quiet=False, colorize=False):
         raise subprocess.CalledProcessError(proc.returncode, ' '.join(cmd))
     return out.getvalue() if quiet else ''
 
-blue_arrow = '@!@{bf}==>@{wf}'
+blue_arrow = '@!@{bf}==>@|@!'
 
 
 def _check_build_dir(name, workspace, buildspace):
@@ -194,7 +194,7 @@ def get_python_path(path):
 def build_catkin_package(
     path, package,
     workspace, buildspace, develspace, installspace,
-    install, jobs, force_cmake, quiet, last_env
+    install, jobs, force_cmake, quiet, last_env, cmake_args
 ):
     cprint(
         "Processing @{cf}catkin@| package: '@!@{bf}" +
@@ -221,6 +221,7 @@ def build_catkin_package(
             '-DCATKIN_DEVEL_PREFIX=' + develspace,
             '-DCMAKE_INSTALL_PREFIX=' + installspace
         ]
+        cmake_cmd.extend(cmake_args)
         isolation_print_command(' '.join(cmake_cmd))
         if last_env is not None:
             cmake_cmd = [last_env] + cmake_cmd
@@ -237,7 +238,7 @@ def build_catkin_package(
         )
 
     # Run make
-    make_cmd = ['make', '-j' + str(jobs)]
+    make_cmd = ['make', '-j' + str(jobs), '-l' + str(jobs)]
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
@@ -255,7 +256,7 @@ def build_catkin_package(
 def build_cmake_package(
     path, package,
     workspace, buildspace, develspace, installspace,
-    install, jobs, force_cmake, quiet, last_env
+    install, jobs, force_cmake, quiet, last_env, cmake_args
 ):
     # Notify the user that we are processing a plain cmake package
     cprint(
@@ -281,6 +282,7 @@ def build_cmake_package(
             os.path.dirname(package.filename),
             '-DCMAKE_INSTALL_PREFIX=' + install_target
         ]
+        cmake_cmd.extend(cmake_args)
         isolation_print_command(' '.join(cmake_cmd))
         if last_env is not None:
             cmake_cmd = [last_env] + cmake_cmd
@@ -297,7 +299,7 @@ def build_cmake_package(
         )
 
     # Run make
-    make_cmd = ['make', '-j' + str(jobs)]
+    make_cmd = ['make', '-j' + str(jobs), '-l' + str(jobs)]
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
@@ -310,20 +312,23 @@ def build_cmake_package(
         make_install_cmd = [last_env] + make_install_cmd
     run_command(make_install_cmd, build_dir, quiet)
 
-    # If we are installing, and a env_cached.sh exists, don't overwrite it
-    if install and os.path.exists(os.path.join(installspace, 'env_cached.sh')):
+    # If we are installing, and a env.sh exists, don't overwrite it
+    if install and os.path.exists(os.path.join(installspace, 'env.sh')):
         return
-    cprint(blue_arrow + " Generating an env_cached.sh")
+    cprint(blue_arrow + " Generating an env.sh")
     # Generate basic env.sh for chaining to catkin packages
-    last_env = os.path.join(os.path.dirname(last_env), 'setup.sh')
     new_env_path = os.path.join(install_target, 'env.sh')
-    cmake_prefix_path = install_target + ":"
-    ld_path = os.path.join(install_target, 'lib') + ":"
+    subs = {}
+    subs['last_env'] = os.path.join(os.path.dirname(last_env), 'setup.sh')
+    subs['cmake_prefix_path'] = install_target + ":"
+    subs['ld_path'] = os.path.join(install_target, 'lib') + ":"
     pythonpath = ":".join(get_python_path(install_target))
     if pythonpath:
         pythonpath += ":"
-    pkgcfg_path = os.path.join(install_target, 'lib', 'pkgconfig') + ":"
-    path = os.path.join(install_target, 'bin') + ":"
+    subs['pythonpath'] = pythonpath
+    subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig')
+    subs['pkgcfg_path'] += ":"
+    subs['path'] = os.path.join(install_target, 'bin') + ":"
     with open(new_env_path, 'w+') as file_handle:
         file_handle.write("""\
 #!/bin/sh
@@ -352,7 +357,7 @@ export PKG_CONFIG_PATH="{pkgcfg_path}$PKG_CONFIG_PATH"
 export PYTHONPATH="{pythonpath}$PYTHONPATH"
 
 exec "$@"
-""".format(**locals())
+""".format(**subs)
         )
     os.chmod(new_env_path, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
 
@@ -360,7 +365,7 @@ exec "$@"
 def build_package(
     path, package,
     workspace, buildspace, develspace, installspace,
-    install, jobs, force_cmake, quiet, last_env,
+    install, jobs, force_cmake, quiet, last_env, cmake_args,
     number=None, of=None
 ):
     export_tags = [e.tagname for e in package.exports]
@@ -379,7 +384,7 @@ def build_package(
             build_catkin_package(
                 path, package,
                 workspace, buildspace, develspace, installspace,
-                install, jobs, force_cmake, quiet, last_env
+                install, jobs, force_cmake, quiet, last_env, cmake_args
             )
             if install:
                 new_last_env = os.path.join(
@@ -393,15 +398,16 @@ def build_package(
                 )
             if not os.path.exists(new_last_env):
                 raise RuntimeError(
-                    "No env_cached.sh file generated at: " + new_last_env +
-                    "\n  This sometimes occurs when a non-catkin package is "
-                    "interpreted as a catkin package."
+                    "No env.sh file generated at: '" + new_last_env +
+                    "'\n  This sometimes occurs when a non-catkin package is "
+                    "interpreted as a catkin package.\n  This can also occur "
+                    "when the cmake cache is stale, try --force-cmake."
                 )
         elif build_type_tag == 'cmake':
             build_cmake_package(
                 path, package,
                 workspace, buildspace, develspace, installspace,
-                install, jobs, force_cmake, quiet, last_env
+                install, jobs, force_cmake, quiet, last_env, cmake_args
             )
             if install:
                 new_last_env = os.path.join(
@@ -435,7 +441,8 @@ def build_workspace_isolated(
     jobs=None,
     force_cmake=False,
     colorize=True,
-    quiet=False
+    quiet=False,
+    cmake_args=[]
 ):
     '''
     Runs ``cmake``, ``make`` and optionally ``make install`` for all
@@ -453,12 +460,13 @@ def build_workspace_isolated(
         devel space. does not work with non-catkin packages, ``bool``
     :param install: if True, install all packages to the install space,
         ``bool``
-    :param jobs: number of parallel build jobs to run (make -jN), ``int``
+    :param jobs: number of parallel build jobs to run (make -jN -lN), ``int``
     :param force_cmake: (optional), if True calls cmake explicitly for each
         package, ``bool``
     :param colorize: if True, colorize cmake output and other messages,
         ``bool``
     :param quiet: if True, hides some build output, ``bool``
+    :param cmake_args: additional arguments for cmake, ``[str]``
     '''
     if not colorize:
         disable_ANSI_colors()
@@ -467,6 +475,9 @@ def build_workspace_isolated(
     if not os.path.exists(workspace):
         sys.exit("Workspace path '{0}' does not exist.".format(workspace))
     workspace = os.path.abspath(workspace)
+
+    if cmake_args:
+        print("Additional CMake Arguments: " + " ".join(cmake_args))
 
     # Check source space existance
     if sourcespace is None:
@@ -553,7 +564,9 @@ def build_workspace_isolated(
         sys.exit('Can not build workspace with packages of unknown build_type')
 
     # Check to see if the workspace has changed
-    if cmake_input_changed(sourcespace, buildspace, None, 'catkin_make_isolated'):
+    if cmake_input_changed(
+        sourcespace, buildspace, cmake_args, 'catkin_make_isolated'
+    ):
         force_cmake = True
         print(colorize_line(
             'Warning: packages or cmake arguments have changed, forcing cmake'
@@ -570,18 +583,45 @@ def build_workspace_isolated(
             last_env = build_package(
                 path, package,
                 workspace, buildspace, develspace, installspace,
-                install, jobs, force_cmake, quiet, last_env,
+                install, jobs, force_cmake, quiet, last_env, cmake_args,
                 number=index + 1, of=len(packages)
             )
-        except (subprocess.CalledProcessError, KeyboardInterrupt) as e:
+        except Exception as e:
             cprint(
                 '@{rf}@!<==@| ' +
                 'Failed to process package \'@!@{bf}' +
                 package.name + '@|\': \n  ' +
-                (str(e) if isinstance(e, KeyboardInterrupt)
-                        else 'KeyboardInterrupt')
+                ('KeyboardInterrupt' if isinstance(e, KeyboardInterrupt)
+                        else str(e))
             )
+            if isinstance(e, subprocess.CalledProcessError):
+                cmd = ' '.join(e.cmd) if isinstance(e.cmd, list) else e.cmd
+                print(fmt("\n@{rf}Reproduce this error by running:"))
+                print(fmt("@{gf}@!==> @|") + cmd + "\n")
             sys.exit('Command failed, exiting.')
+
+    # Provide a top level devel space environment setup script
+    if not merge:
+        target_setup = os.path.join(original_develspace, 'setup')
+        with open(target_setup + '.sh', 'w') as f:
+            f.write("""\
+# Generated from catkin.builder module
+. "{0}/setup.sh"
+""".format(develspace))
+        with open(target_setup + '.bash', 'w') as f:
+            f.write("""\
+# Generated from catkin.builder module
+CATKIN_SHELL=bash
+source "{0}"
+""".format(target_setup + '.sh'))
+        with open(target_setup + '.zsh', 'w') as f:
+            f.write("""\
+# Generated from catkin.builder module
+CATKIN_SHELL=zsh
+emulate sh # emulate POSIX
+. "{0}"
+emulate zsh # back to zsh mode
+""".format(target_setup + '.sh'))
 
 
 def cmake_input_changed(source_path, build_path, cmake_args=None, filename='catkin_make'):
