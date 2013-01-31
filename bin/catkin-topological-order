@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+
+import sys
+import os
+import argparse
+import rospkg.stack
+
+
+def parse_stack(xml_file):
+    stack = rospkg.stack.parse_stack_file(xml_file)
+    return {stack.name:dict(deps=[d.name for d in stack.build_depends],
+                            dir=os.path.dirname(xml_file)
+                            )
+            }
+
+def buildable_graph_from_stacks(wd):
+    join = os.path.join
+    exists = os.path.exists
+    graph = {}
+
+    for f in [ join(join(wd, f), 'stack.xml')
+               for f in os.listdir(wd)
+               if exists(join(join(wd, f), 'stack.xml'))
+               ]:
+        graph.update(parse_stack(f))
+
+    ourpackages = [package for package in graph.keys()]
+    graph_we_can_build = {}
+
+    for key, value in graph.iteritems():
+        graph_we_can_build[key] = value['deps'].intersection(ourpackages)
+    
+    return (graph_we_can_build,graph)
+
+def topological_sort(graph):
+    '''
+    http://en.wikipedia.org/wiki/Topological_sorting
+    L <- Empty list that will contain the sorted elements
+    S <- Set of all nodes with no incoming edges
+    while S is non-empty do
+        remove a node n from S
+        insert n into L
+        for each node m with an edge e from n to m do
+            remove edge e from the graph
+            if m has no other incoming edges then
+                insert m into S
+    if graph has edges then
+        return error (graph has at least one cycle)
+    else 
+        return L (a topologically sorted order)
+    '''
+    L = []
+    S = [package for package in graph.keys() if len(graph[package]) == 0]
+    while S:
+        n = S.pop()
+        L.append(n)
+        for m in [m for m in graph.keys() if n in graph[m]]:
+            graph[m].remove(n)
+            if len(graph[m]) == 0:
+                S.append(m)
+    return L
+
+def deps(graph, top, which):
+    d = dict(
+        upstream = list(graph[top]),
+        downstream = list(set([m for m in graph.keys() if top in graph[m] ]))
+    )
+    print '\n'.join(d[which])
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Creates a topologically sorted list by build dependency from a directory full of catkin projects.')
+    parser.add_argument('working_dir', nargs='?', help='Toplevel workspace.')
+    parser.add_argument('--top', help='The top of the graph.')
+    parser.add_argument('--dirs', help='Emit directories, not Catkin-ProjectNames', action='store_true')
+    parser.add_argument('--action', default='upstream',choices=('upstream','downstream'))
+    args = parser.parse_args()
+    wd = '.'
+    if args.working_dir:
+        wd = args.working_dir
+
+    graph,stacks = buildable_graph_from_stacks(wd)
+
+    if args.top:
+        deps(graph,args.top, args.action)
+    else:
+        jobs = topological_sort(graph)
+        if args.dirs:
+            print '\n'.join([stacks[x]['dir'] for x in jobs])
+        else:
+            print '\n'.join(jobs)
