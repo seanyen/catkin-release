@@ -11,11 +11,7 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import catkin_sphinx
-import os
-import sys
-import subprocess
-from xml.etree.ElementTree import ElementTree
+import sys, os, subprocess
 
 # -- General configuration -----------------------------------------------------
 
@@ -23,13 +19,8 @@ from xml.etree.ElementTree import ElementTree
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.ifconfig', 'sphinx.ext.todo', 'sphinx.ext.graphviz',
               'sphinx.ext.intersphinx',
-              'catkin_sphinx.ShLexer', 'catkin_sphinx.cmake',
-              'sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+              'catkin_sphinx.ShLexer', 'catkin_sphinx.cmake']
 todo_include_todos = True
-
-# include path to python files hidden in cmake folder
-sys.path.insert(0, '../cmake')
-sys.path.insert(0, '../python')
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -59,11 +50,14 @@ copyright = u'2010, Willow Garage -- ' + ' Version ' + dochash + ", " + ' '.join
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
+#
+# The short X.Y version.
+import rospkg.stack
 try:
-    root = ElementTree(None, os.path.join('..', 'package.xml'))
-    version = root.findtext('version')
-except Exception as e:
-    raise RuntimeError('Could not extract version from package.xml:\n%s' % e)
+    version = rospkg.stack.parse_stack_file('../stack.xml').version
+except Exception, e:
+    print >> sys.stderr, 'Could not extract version from your stack.xml:\n%s' % e
+    sys.exit(-1)
 
 # The full version, including alpha/beta/rc tags.
 release = version
@@ -109,8 +103,7 @@ pygments_style = 'sphinx'
 # -- Options for HTML output ---------------------------------------------------
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [os.path.join(os.path.dirname(catkin_sphinx.__file__),
-                                'theme')]
+html_theme_path = [os.path.join(os.path.expanduser('~'), 'sphinx'), 'themes']
 
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
 # Sphinx are currently 'default' and 'sphinxdoc'.
