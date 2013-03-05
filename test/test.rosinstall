@@ -1,67 +1,80 @@
 - git:
     uri: 'git://github.com/ros/catkin.git'
     local-name: catkin
-    version: master
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/genmsg.git'
     local-name: genmsg
-    version: master
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/gencpp.git'
     local-name: gencpp
-    version: master
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/genlisp.git'
     local-name: genlisp
-    version: master
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/genpy.git'
     local-name: genpy
-    version: master
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/langs.git'
     local-name: langs
-    version: master
+    version: fuerte-devel
+
+- git:
+    uri: 'git://github.com/ros/langs-dev.git'
+    local-name: langs-dev
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/std_msgs.git'
     local-name: std_msgs
-    version: master
+    version: fuerte-devel
 
 - git:
     uri: 'git://github.com/ros/roscpp_core.git'
     local-name: roscpp_core
-    version: master
+    version: fuerte-devel
 
-- svn:
-    uri: 'https://code.ros.org/svn/ros/stacks/ros_comm/trunk/'
+- git:
+    uri: 'git://github.com/ros/ros_comm.git'
     local-name: ros_comm
+    version: fuerte-devel
 
-- svn:
-    uri: 'https://code.ros.org/svn/ros/stacks/ros_tutorials/trunk/'
+- git:
+    uri: 'git://github.com/ros/ros_tutorials.git'
     local-name: ros_tutorials
+    version: fuerte-devel
 
-- svn:
-    uri: 'https://code.ros.org/svn/ros/stacks/ros/trunk/'
+- git:
+    uri: 'git://github.com/ros/ros.git'
     local-name: ros
+    version: ros-1.8
 
-- svn:
-    uri: 'https://code.ros.org/svn/ros-pkg/stacks/common_msgs/trunk'
+- git:
+    uri: 'git://github.com/ros/common_msgs.git'
     local-name: common_msgs
+    version: fuerte-devel
 
-- hg:
+- git:
     local-name: rospack
-    uri: https://kforge.ros.org/rosrelease/rospack
+    uri: 'git://github.com/ros/rospack.git'
+    version: fuerte-devel
 
-- svn:
+- git:
+    uri: git://github.com/ros-visualization/rx
     local-name: rx
-    uri: https://code.ros.org/svn/ros/stacks/rx/trunk
+    version: fuerte-devel
 
 - hg:
     local-name: actionlib
     uri: https://kforge.ros.org/common/actionlib
+    version: fuerte-devel
+

@@ -39,14 +39,16 @@ foreach(f
     catkin_workspace
     catkin_python_setup
     catkin_add_env_hooks
-    libraries
     rosbuild_compat
     platform/lsb
     platform/ubuntu
+    platform/windows
     tools/doxygen
+    tools/libraries
     tools/rt
     tools/threads
     tools/gtest
+    future
     )
   include(${catkin_EXTRAS_DIR}/${f}.cmake)
 endforeach()
