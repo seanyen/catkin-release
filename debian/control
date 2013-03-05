@@ -1,0 +1,15 @@
+Source: ros-fuerte-catkin
+Section: misc
+Priority: extra
+Maintainer: Dirk Thomas <dthomas@willowgarage.com>
+Build-Depends: debhelper (>= 7.0.50~), cmake, libgtest-dev, python-empy, python-nose, python-rospkg, python-setuptools, python-yaml
+Homepage: http://www.ros.org/wiki/catkin
+Standards-Version: 3.9.2
+
+Package: ros-fuerte-catkin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, cmake, libgtest-dev, python-empy, python-nose, python-rospkg, python-setuptools, python-yaml
+Description: Willow Garage low-level build system macros and infrastructure.
+ .
+ This stack contains the packages:
+ * /tmp/tmpIdaUNJ/clone: Willow Garage low-level build system macros and infrastructure.
