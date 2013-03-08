@@ -1,27 +1,51 @@
-#
-#  TOPLEVEL cmakelists
-#
-cmake_minimum_required(VERSION 2.8)
-cmake_policy(SET CMP0003 NEW)
-cmake_policy(SET CMP0011 NEW)
+# toplevel CMakeLists.txt for a catkin workspace
+# catkin/cmake/toplevel.cmake
 
-include(${CMAKE_SOURCE_DIR}/workspace-config.cmake OPTIONAL)
+cmake_minimum_required(VERSION 2.8.3)
 
-set(CATKIN YES)
-list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_BINARY_DIR}/cmake)
+# optionally provide a cmake file in the workspace to override arbitrary stuff
+include(workspace.cmake OPTIONAL)
 
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CATKIN_TOPLEVEL TRUE)
 
-if (IS_DIRECTORY ${CMAKE_SOURCE_DIR}/catkin)
-  message(STATUS "+++ catkin")
-  set(CATKIN_BUILD_STACKS "ALL" CACHE STRING
-    "List of ';' separated stacks to build, or ALL for all.")
-  set(CATKIN_BLACKLIST_STACKS "NONE" CACHE STRING
-    "List of ';' separated stacks to completely exclude from cmake traversal.")
+# include catkin directly or via find_package()
+if(EXISTS "${CMAKE_SOURCE_DIR}/catkin/cmake/all.cmake" AND EXISTS "${CMAKE_SOURCE_DIR}/catkin/CMakeLists.txt")
+  set(catkin_EXTRAS_DIR "${CMAKE_SOURCE_DIR}/catkin/cmake")
+  # include all.cmake without add_subdirectory to let it operate in same scope
+  include(catkin/cmake/all.cmake NO_POLICY_SCOPE)
   add_subdirectory(catkin)
+
 else()
-  find_package(catkin)
+  # use either CMAKE_PREFIX_PATH explicitly passed to CMake as a command line argument
+  # or CMAKE_PREFIX_PATH from the environment
+  if(NOT DEFINED CMAKE_PREFIX_PATH)
+    if(NOT "$ENV{CMAKE_PREFIX_PATH}" STREQUAL "")
+      string(REPLACE ":" ";" CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})
+    endif()
+  endif()
+
+  # list of catkin workspaces
+  set(catkin_search_path "")
+  foreach(path ${CMAKE_PREFIX_PATH})
+    if(EXISTS "${path}/.catkin")
+      list(FIND catkin_search_path ${path} _index)
+      if(_index EQUAL -1)
+        list(APPEND catkin_search_path ${path})
+      endif()
+    endif()
+  endforeach()
+
+  # search for catkin in all workspaces
+  set(CATKIN_TOPLEVEL_FIND_PACKAGE TRUE)
+  find_package(catkin QUIET
+    NO_POLICY_SCOPE
+    PATHS ${catkin_search_path}
+    NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+  unset(CATKIN_TOPLEVEL_FIND_PACKAGE)
+
+  if(NOT catkin_FOUND)
+    message(FATAL_ERROR "find_package(catkin) failed. catkin was neither found in the workspace nor in the CMAKE_PREFIX_PATH. One reason may be that no ROS setup.sh was sourced before.")
+  endif()
 endif()
 
 catkin_workspace()

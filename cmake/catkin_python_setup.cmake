@@ -1,119 +1,116 @@
-# optionally give relative path to setup.py file
+# This macro will interrogate the Python setup.py file in
+# ``${${PROJECT_NAME}_SOURCE_DIR}``, and then creates forwarding
+# Python :term:`pkgutil` infrastructure in devel space
+# accordingly for the scripts and packages declared in setup.py.
+#
+# Doing so enables mixing :term:`generated code` in
+# devel space with :term:`static code` from sourcespace within a
+# single Python package.
+#
+# In addition, it adds the install command of
+# distutils/setuputils to the install target.
+#
+# .. note:: If the project also uses genmsg message generation via
+#   ``generate_messages()`` this function must be called before.
+#
+# @public
+#
 function(catkin_python_setup)
-  check_unused_arguments("catkin_python_setup" "${ARGN}")
+  if(ARGN)
+    message(FATAL_ERROR "catkin_python_setup() called with unused arguments: ${ARGN}")
+  endif()
 
-  assert(PROJECT_NAME)
-
-  # mark that catkin_python_setup() was called in order to disable installation of gen/py stuff in generate_messages()
+  # mark that catkin_python_setup() was called in order to disable installation of generated __init__.py files in generate_messages() and generate_dynamic_reconfigure_options()
   set(${PROJECT_NAME}_CATKIN_PYTHON_SETUP TRUE PARENT_SCOPE)
   if(${PROJECT_NAME}_GENERATE_MESSAGES)
-    message(FATAL_ERROR "generate_messages() must be called after catkin_python_setup() in project ${PROJECT_NAME}")
+    message(FATAL_ERROR "generate_messages() must be called after catkin_python_setup() in project '${PROJECT_NAME}'")
+  endif()
+  if(${PROJECT_NAME}_GENERATE_DYNAMIC_RECONFIGURE)
+    message(FATAL_ERROR "generate_dynamic_reconfigure_options() must be called after catkin_python_setup() in project '${PROJECT_NAME}'")
   endif()
 
-  # Use PROJECT_NAME as pkg_name
-  set(pkg_name ${PROJECT_NAME})
-
-  if(${ARGC} GREATER 1)
-    message(WARNING "catkin_python_setup() takes only one optional argument, update project ${pkg_name}")
-  endif()
-  set(PATH_TO_SETUP_PY "")
-  if(${ARGC} EQUAL 1)
-    set(PATH_TO_SETUP_PY "${ARGN}/")
-  endif()
-  set(SETUP_PY_FILE "${PATH_TO_SETUP_PY}setup.py")
-  if(NOT("${PATH_TO_SETUP_PY}" STREQUAL ""))
-    string(REPLACE "." "_" PATH_TO_SETUP_PY ${PATH_TO_SETUP_PY})
+  if(NOT EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/setup.py)
+    message(FATAL_ERROR "catkin_python_setup() called without 'setup.py' in project folder ' ${${PROJECT_NAME}_SOURCE_DIR}'")
   endif()
 
-  if(NOT EXISTS ${${pkg_name}_SOURCE_DIR}/${SETUP_PY_FILE})
-    message(WARNING "catkin_python_setup() called without ${SETUP_PY_FILE} in project ${pkg_name}")
+  assert(PYTHON_INSTALL_DIR)
+  set(INSTALL_CMD_WORKING_DIRECTORY ${${PROJECT_NAME}_SOURCE_DIR})
+  if(NOT WIN32)
+    set(INSTALL_SCRIPT
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/python_distutils_install.sh)
+    configure_file(${catkin_EXTRAS_DIR}/templates/python_distutils_install.sh.in
+      ${INSTALL_SCRIPT}
+      @ONLY)
+  else()
+    # need to convert install prefix to native path for python setuptools --prefix (its fussy about \'s)
+    file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX} PYTHON_INSTALL_PREFIX)
+    set(INSTALL_SCRIPT
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/python_distutils_install.bat)
+    configure_file(${catkin_EXTRAS_DIR}/templates/python_distutils_install.bat.in
+      ${INSTALL_SCRIPT}
+      @ONLY)
   endif()
 
-  if(EXISTS ${${pkg_name}_SOURCE_DIR}/${SETUP_PY_FILE})
-    assert(INSTALLED_PYTHONPATH)
-    set(INSTALL_CMD_WORKING_DIRECTORY ${${pkg_name}_SOURCE_DIR})
-    if(MSVC)
-      # Need to convert install prefix to native path for python setuptools --prefix (its fussy about \'s)
-      file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX} PYTHON_INSTALL_PREFIX)
-      set(INSTALL_SCRIPT
-        ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_distutils_install.bat)
-      configure_file(${catkin_EXTRAS_DIR}/templates/python_distutils_install.bat.in
-        ${INSTALL_SCRIPT}
-        @ONLY)
-    else()
-      set(INSTALL_SCRIPT
-        ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_distutils_install.sh)
-      configure_file(${catkin_EXTRAS_DIR}/templates/python_distutils_install.sh.in
-        ${INSTALL_SCRIPT}
-        @ONLY)
-    endif()
-    
-    configure_file(${catkin_EXTRAS_DIR}/templates/safe_execute_install.cmake.in
-      ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/safe_execute_install.cmake)
+  # generate python script which gets executed at install time
+  configure_file(${catkin_EXTRAS_DIR}/templates/safe_execute_install.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/safe_execute_install.cmake)
+  install(SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/safe_execute_install.cmake)
 
-    install(SCRIPT ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/safe_execute_install.cmake)
+  # interrogate setup.py
+  stamp(${${PROJECT_NAME}_SOURCE_DIR}/setup.py)
+  assert(CATKIN_ENV)
+  assert(PYTHON_EXECUTABLE)
+  set(cmd
+    ${CATKIN_ENV} ${PYTHON_EXECUTABLE}
+    ${catkin_EXTRAS_DIR}/interrogate_setup_dot_py.py
+    ${PROJECT_NAME}
+    ${${PROJECT_NAME}_SOURCE_DIR}/setup.py
+    ${${PROJECT_NAME}_BINARY_DIR}/catkin_generated/setup_py_interrogation.cmake
+    )
+  debug_message(10 "catkin_python_setup() in project '{PROJECT_NAME}' executes:  ${cmd}")
+  safe_execute_process(COMMAND ${cmd})
+  include(${${PROJECT_NAME}_BINARY_DIR}/catkin_generated/setup_py_interrogation.cmake)
 
-    stamp(${${pkg_name}_SOURCE_DIR}/${SETUP_PY_FILE})
+  # call catkin_package_xml() if it has not been called before
+  if(NOT _CATKIN_CURRENT_PACKAGE)
+    catkin_package_xml()
+  endif()
+  assert(${PROJECT_NAME}_VERSION)
+  # verify that version from setup.py is equal to version from package.xml
+  if(NOT "${${PROJECT_NAME}_SETUP_PY_VERSION}" STREQUAL "${${PROJECT_NAME}_VERSION}")
+    message(FATAL_ERROR "catkin_python_setup() version in setup.py (${${PROJECT_NAME}_SETUP_PY_VERSION}) differs from version in package.xml (${${PROJECT_NAME}_VERSION})")
+  endif()
 
-    set(CMD
-      ${CATKIN_ENV} ${PYTHON_EXECUTABLE}
-      ${catkin_EXTRAS_DIR}/interrogate_setup_dot_py.py
-      ${pkg_name}
-      ${${pkg_name}_SOURCE_DIR}/${SETUP_PY_FILE}
-      ${${pkg_name}_BINARY_DIR}/${PATH_TO_SETUP_PY}setup_py_interrogation.cmake
-      )
-
-    # message("IN ${pkg_name}:  ${CMD}")
-    safe_execute_process(COMMAND
-      ${CMD}
-      )
-    include(${${pkg_name}_BINARY_DIR}/${PATH_TO_SETUP_PY}setup_py_interrogation.cmake)
-
-    if(${pkg_name}_PACKAGES)
-      list(LENGTH ${pkg_name}_PACKAGES pkgs_count)
-      math(EXPR pkgs_range "${pkgs_count} - 1")
-      foreach(index RANGE ${pkgs_range})
-        list(GET ${pkg_name}_PACKAGES ${index} pkg)
-        list(GET ${pkg_name}_PACKAGE_DIRS ${index} pkg_dir)
-        get_filename_component(name ${pkg_dir} NAME)
-        if(NOT ("${pkg}" STREQUAL "${name}"))
-          message(FATAL_ERROR "The package name ${pkg} differs from the basename of the path ${pkg_dir} in project ${PROJECT_NAME}")
-        endif()
-        get_filename_component(path ${pkg_dir} PATH)
-        set(PACKAGE_PYTHONPATH ${CMAKE_CURRENT_SOURCE_DIR}/${path})
-        configure_file(${catkin_EXTRAS_DIR}/templates/__init__.py.in
-          ${CMAKE_BINARY_DIR}/gen/py/${pkg}/__init__.py
-          @ONLY)
-      endforeach()
-    endif()
-
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    foreach(script ${${pkg_name}_SCRIPTS})
-      get_filename_component(name ${script} NAME)
-      if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${script})
-        message(FATAL_ERROR "
-   Script ${name} as listed in ${SETUP_PY_FILE} of ${pkg_name} doesn't exist!!!
-")
+  # generate relaying __init__.py for each python package
+  if(${PROJECT_NAME}_SETUP_PY_PACKAGES)
+    list(LENGTH ${PROJECT_NAME}_SETUP_PY_PACKAGES pkgs_count)
+    math(EXPR pkgs_range "${pkgs_count} - 1")
+    foreach(index RANGE ${pkgs_range})
+      list(GET ${PROJECT_NAME}_SETUP_PY_PACKAGES ${index} pkg)
+      list(GET ${PROJECT_NAME}_SETUP_PY_PACKAGE_DIRS ${index} pkg_dir)
+      get_filename_component(name ${pkg_dir} NAME)
+      if(NOT ("${pkg}" STREQUAL "${name}"))
+        message(FATAL_ERROR "The package name '${pkg}' differs from the basename of the path '${pkg_dir}' in project '${PROJECT_NAME}'")
       endif()
-      #message(STATUS "   Making toplevel forward script for python script ${name}")
-      set(PYTHON_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/${script})
-      configure_file(${catkin_EXTRAS_DIR}/templates/script.py.in
-        ${CMAKE_BINARY_DIR}/bin/${name}
+      get_filename_component(path ${pkg_dir} PATH)
+      set(PACKAGE_PYTHONPATH ${CMAKE_CURRENT_SOURCE_DIR}/${path})
+      configure_file(${catkin_EXTRAS_DIR}/templates/__init__.py.in
+        ${CATKIN_DEVEL_PREFIX}/${PYTHON_INSTALL_DIR}/${pkg}/__init__.py
         @ONLY)
     endforeach()
-
   endif()
 
+   # generate relay-script for each python script
+  foreach(script ${${PROJECT_NAME}_SETUP_PY_SCRIPTS})
+    get_filename_component(name ${script} NAME)
+    if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${script})
+      message(FATAL_ERROR "The script '${name}' as listed in 'setup.py' of '${PROJECT_NAME}' doesn't exist")
+    endif()
+    set(PYTHON_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/${script})
+    configure_file(${catkin_EXTRAS_DIR}/templates/script.py.in
+      ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_BIN_DESTINATION}/${name}
+      @ONLY)
+  endforeach()
 endfunction()
 
 stamp(${catkin_EXTRAS_DIR}/interrogate_setup_dot_py.py)
-
-function(catkin_export_python)
-  message(WARNING "CMAKE macro catkin_export_python replaced by catkin_python_setup")
-  catkin_python_setup()
-endfunction()
-
-function(enable_python)
-  message(WARNING "CMAKE macro enable_python replaced by catkin_export_python")
-  catkin_export_python(${ARGN})
-endfunction()
