@@ -1,3 +1,3 @@
 [git-buildpackage]
-upstream-branch=release/catkin/0.5.63
+upstream-branch=@(release_tag)
 upstream-tree=branch
