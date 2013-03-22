@@ -8,7 +8,7 @@ set(PYTHON_VERSION_XDOTY ${PYTHON_VERSION_XDOTY} CACHE STRING "Python version")
 #This should be resolved automatically one day...
 option(SETUPTOOLS_DEB_LAYOUT "ON for debian style python packages layout" ON)
 
-if(APPLE OR MSVC)
+if(APPLE OR WIN32)
   set(SETUPTOOLS_DEB_LAYOUT OFF)
 endif()
 
@@ -17,11 +17,11 @@ if(SETUPTOOLS_DEB_LAYOUT)
   set(SETUPTOOLS_ARG_EXTRA "--install-layout=deb")
 else()
   set(PYTHON_PACKAGES_DIR site-packages)
-  file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/bin PYTHON_INSTALL_PREFIX) # setuptools is fussy about windows paths
-  set(SETUPTOOLS_ARG_EXTRA "--install-scripts=${PYTHON_INSTALL_PREFIX}")
+  # setuptools is fussy about windows paths, make sure the install prefix is in native format
+  file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}" SETUPTOOLS_INSTALL_PREFIX)
 endif()
 
-if(NOT MSVC)
+if(NOT WIN32)
   set(PYTHON_INSTALL_DIR lib/python${PYTHON_VERSION_XDOTY}/${PYTHON_PACKAGES_DIR}
     CACHE INTERNAL "This needs to be in PYTHONPATH when 'setup.py install' is called.  And it needs to match.  But setuptools won't tell us where it will install things.")
 else()
