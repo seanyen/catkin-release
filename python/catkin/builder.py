@@ -41,8 +41,9 @@ import subprocess
 import sys
 
 try:
+    from catkin_pkg.cmake import configure_file, get_metapackage_cmake_template_path
     from catkin_pkg.packages import find_packages
-    from catkin_pkg.topological_order import topological_order
+    from catkin_pkg.topological_order import topological_order_packages
 except ImportError as e:
     sys.exit(
         'ImportError: "from catkin_pkg.topological_order import '
@@ -50,7 +51,40 @@ except ImportError as e:
         '"catkin_pkg", it is up to date and on the PYTHONPATH.' % e
     )
 
+from catkin.cmake import get_cmake_path
 from catkin.terminal_color import ansi, disable_ANSI_colors, fmt, sanitize
+
+
+def split_arguments(args, splitter_name, default=None):
+    if splitter_name not in args:
+        return args, default
+    index = args.index(splitter_name)
+    return args[0:index], args[index + 1:]
+
+
+def extract_cmake_and_make_arguments(args):
+    cmake_args = []
+    make_args = []
+    if '--cmake-args' in args and '--make-args' in args:
+        cmake_index = args.index('--cmake-args')
+        make_index = args.index('--make-args')
+        # split off last argument group first
+        if cmake_index < make_index:
+            args, make_args = split_arguments(args, '--make-args')
+            args, cmake_args = split_arguments(args, '--cmake-args')
+        else:
+            args, cmake_args = split_arguments(args, '--cmake-args')
+            args, make_args = split_arguments(args, '--make-args')
+    elif '--cmake-args' in args:
+        args, cmake_args = split_arguments(args, '--cmake-args')
+    elif '--make-args' in args:
+        args, make_args = split_arguments(args, '--make-args')
+
+    # classify -D* and -G* arguments as cmake specific arguments
+    implicit_cmake_args = [a for a in args if a.startswith('-D') or a.startswith('-G')]
+    args = [a for a in args if a not in implicit_cmake_args]
+
+    return args, implicit_cmake_args + cmake_args, make_args
 
 
 def cprint(msg, end=None):
@@ -60,15 +94,14 @@ def cprint(msg, end=None):
 def colorize_line(line):
     cline = sanitize(line)
     cline = cline.replace(
-        '-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
-        '-- @{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~@|'
+        '-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+        '-- @{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~@|'
     )
     if line.startswith('-- ~~'):
         # -- ~~  -
         cline = cline.replace('~~ ', '@{pf}~~ @|')
         cline = cline.replace(' - ', ' - @!@{bf}')
         cline = cline.replace('(', '@|(')
-        cline = cline.replace('(metapackage)', '@|(@{cf}metapackage@|)')
         cline = cline.replace('(plain cmake)', '@|(@{rf}plain cmake@|)')
         cline = cline.replace('(unknown)', '@|(@{yf}unknown@|)')
     if line.startswith('-- +++'):
@@ -76,7 +109,6 @@ def colorize_line(line):
         cline = cline.replace('+++', '@!@{gf}+++@|')
         cline = cline.replace('kin package: \'', 'kin package: \'@!@{bf}')
         cline = cline.replace(')', '@|)')
-        cline = cline.replace('metapackage: \'', 'metapackage: \'@!@{bf}')
         cline = cline.replace('\'\n', '@|\'\n')
         cline = cline.replace('cmake package: \'', 'cmake package: \'@!@{bf}')
         cline = cline.replace('\'\n', '@|\'\n')
@@ -194,7 +226,7 @@ def get_python_path(path):
 def build_catkin_package(
     path, package,
     workspace, buildspace, develspace, installspace,
-    install, jobs, force_cmake, quiet, last_env, cmake_args
+    install, jobs, force_cmake, quiet, last_env, cmake_args, make_args
 ):
     cprint(
         "Processing @{cf}catkin@| package: '@!@{bf}" +
@@ -214,10 +246,24 @@ def build_catkin_package(
     # Check for Makefile and maybe call cmake
     makefile = os.path.join(build_dir, 'Makefile')
     if not os.path.exists(makefile) or force_cmake:
+        package_dir = os.path.dirname(package.filename)
+        if not os.path.exists(os.path.join(package_dir, 'CMakeLists.txt')):
+            export_tags = [e.tagname for e in package.exports]
+            if 'metapackage' not in export_tags:
+                print(colorize_line('Error: Package "%s" does not have a CMakeLists.txt file' % package.name))
+                sys.exit('Can not build catkin package without CMakeLists.txt file')
+            # generate CMakeLists.txt for metpackages without one
+            print(colorize_line('Warning: metapackage "%s" should have a CMakeLists.txt file' % package.name))
+            cmake_code = configure_file(get_metapackage_cmake_template_path(), {'name': package.name, 'metapackage_arguments': 'DIRECTORY "%s"' % package_dir})
+            cmakelists_txt = os.path.join(build_dir, 'CMakeLists.txt')
+            with open(cmakelists_txt, 'w') as f:
+                f.write(cmake_code)
+            package_dir = build_dir
+
         # Run cmake
         cmake_cmd = [
             'cmake',
-            os.path.dirname(package.filename),
+            package_dir,
             '-DCATKIN_DEVEL_PREFIX=' + develspace,
             '-DCMAKE_INSTALL_PREFIX=' + installspace
         ]
@@ -225,7 +271,12 @@ def build_catkin_package(
         isolation_print_command(' '.join(cmake_cmd))
         if last_env is not None:
             cmake_cmd = [last_env] + cmake_cmd
-        run_command_colorized(cmake_cmd, build_dir, quiet)
+        try:
+            run_command_colorized(cmake_cmd, build_dir, quiet)
+        except subprocess.CalledProcessError as e:
+            # remove Makefile to force CMake invocation next time
+            os.remove(makefile)
+            raise
     else:
         print('Makefile exists, skipping explicit cmake invocation...')
         # Check to see if cmake needs to be run via make
@@ -239,6 +290,7 @@ def build_catkin_package(
 
     # Run make
     make_cmd = ['make', '-j' + str(jobs), '-l' + str(jobs)]
+    make_cmd.extend(make_args)
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
@@ -256,7 +308,7 @@ def build_catkin_package(
 def build_cmake_package(
     path, package,
     workspace, buildspace, develspace, installspace,
-    install, jobs, force_cmake, quiet, last_env, cmake_args
+    install, jobs, force_cmake, quiet, last_env, cmake_args, make_args
 ):
     # Notify the user that we are processing a plain cmake package
     cprint(
@@ -300,6 +352,7 @@ def build_cmake_package(
 
     # Run make
     make_cmd = ['make', '-j' + str(jobs), '-l' + str(jobs)]
+    make_cmd.extend(make_args)
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
@@ -316,10 +369,19 @@ def build_cmake_package(
     if install and os.path.exists(os.path.join(installspace, 'env.sh')):
         return
     cprint(blue_arrow + " Generating an env.sh")
-    # Generate basic env.sh for chaining to catkin packages
+    # Generate env.sh for chaining to catkin packages
     new_env_path = os.path.join(install_target, 'env.sh')
+    variables = {
+        'SETUP_DIR': install_target,
+        'SETUP_FILENAME': 'setup'
+    }
+    with open(os.path.join(new_env_path), 'w') as f:
+        f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'env.sh.in'), variables))
+    os.chmod(new_env_path, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
+
+    # Generate setup.sh for chaining to catkin packages
+    new_setup_path = os.path.join(install_target, 'setup.sh')
     subs = {}
-    subs['last_env'] = os.path.join(os.path.dirname(last_env), 'setup.sh')
     subs['cmake_prefix_path'] = install_target + ":"
     subs['ld_path'] = os.path.join(install_target, 'lib') + ":"
     pythonpath = ":".join(get_python_path(install_target))
@@ -329,14 +391,18 @@ def build_cmake_package(
     subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig')
     subs['pkgcfg_path'] += ":"
     subs['path'] = os.path.join(install_target, 'bin') + ":"
-    with open(new_env_path, 'w+') as file_handle:
+    if not os.path.exists(install_target):
+        os.mkdir(install_target)
+    with open(new_setup_path, 'w+') as file_handle:
         file_handle.write("""\
-#!/bin/sh
+#!/usr/bin/env sh
+# generated from catkin.builder module
 
-# Autogenerated from caktin.builder module
-
-. {last_env}
-
+""")
+        if last_env is not None:
+            last_setup_env = os.path.join(os.path.dirname(last_env), 'setup.sh')
+            file_handle.write('. %s\n\n' % last_setup_env)
+        file_handle.write("""\
 # detect if running on Darwin platform
 UNAME=`which uname`
 UNAME=`$UNAME`
@@ -359,68 +425,38 @@ export PYTHONPATH="{pythonpath}$PYTHONPATH"
 exec "$@"
 """.format(**subs)
         )
-    os.chmod(new_env_path, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
 
 
 def build_package(
     path, package,
     workspace, buildspace, develspace, installspace,
-    install, jobs, force_cmake, quiet, last_env, cmake_args,
+    install, jobs, force_cmake, quiet, last_env, cmake_args, make_args,
     number=None, of=None
 ):
-    export_tags = [e.tagname for e in package.exports]
     cprint('@!@{gf}==>@| ', end='')
-    new_last_env = None
-    if 'metapackage' in export_tags:
-        cprint("Skipping @!metapackage@|: '@!@{bf}" + package.name + "@|'")
-        new_last_env = last_env
+    new_last_env = get_new_env(package, develspace, installspace, install, last_env)
+    build_type = _get_build_type(package)
+    if build_type == 'catkin':
+        build_catkin_package(
+            path, package,
+            workspace, buildspace, develspace, installspace,
+            install, jobs, force_cmake, quiet, last_env, cmake_args, make_args
+        )
+        if not os.path.exists(new_last_env):
+            raise RuntimeError(
+                "No env.sh file generated at: '" + new_last_env +
+                "'\n  This sometimes occurs when a non-catkin package is "
+                "interpreted as a catkin package.\n  This can also occur "
+                "when the cmake cache is stale, try --force-cmake."
+            )
+    elif build_type == 'cmake':
+        build_cmake_package(
+            path, package,
+            workspace, buildspace, develspace, installspace,
+            install, jobs, force_cmake, quiet, last_env, cmake_args, make_args
+        )
     else:
-        if 'build_type' in export_tags:
-            build_type_tag = [e.content for e in package.exports
-                                        if e.tagname == 'build_type'][0]
-        else:
-            build_type_tag = 'catkin'
-        if build_type_tag == 'catkin':
-            build_catkin_package(
-                path, package,
-                workspace, buildspace, develspace, installspace,
-                install, jobs, force_cmake, quiet, last_env, cmake_args
-            )
-            if install:
-                new_last_env = os.path.join(
-                    installspace,
-                    'env.sh'
-                )
-            else:
-                new_last_env = os.path.join(
-                    develspace,
-                    'env.sh'
-                )
-            if not os.path.exists(new_last_env):
-                raise RuntimeError(
-                    "No env.sh file generated at: '" + new_last_env +
-                    "'\n  This sometimes occurs when a non-catkin package is "
-                    "interpreted as a catkin package.\n  This can also occur "
-                    "when the cmake cache is stale, try --force-cmake."
-                )
-        elif build_type_tag == 'cmake':
-            build_cmake_package(
-                path, package,
-                workspace, buildspace, develspace, installspace,
-                install, jobs, force_cmake, quiet, last_env, cmake_args
-            )
-            if install:
-                new_last_env = os.path.join(
-                    installspace,
-                    'env.sh'
-                )
-            else:
-                new_last_env = os.path.join(
-                    develspace,
-                    'env.sh'
-                )
-        else:
-            sys.exit('Can not build package with unknown build_type')
+        sys.exit('Can not build package with unknown build_type')
     if number is not None and of is not None:
         msg = ' [@{gf}@!' + str(number) + '@| of @!@{gf}' + str(of) + '@|]'
     else:
@@ -428,6 +464,25 @@ def build_package(
     cprint('@{gf}<==@| Finished processing package' + msg + ': \'@{bf}@!' +
            package.name + '@|\'')
     return new_last_env
+
+
+def get_new_env(package, develspace, installspace, install, last_env):
+    new_env = None
+    build_type = _get_build_type(package)
+    if build_type in ['catkin', 'cmake']:
+        new_env = os.path.join(
+            installspace if install else develspace,
+            'env.sh'
+        )
+    return new_env
+
+
+def _get_build_type(package):
+    build_type = 'catkin'
+    if 'build_type' in [e.tagname for e in package.exports]:
+        build_type = [e.content for e in package.exports
+                                if e.tagname == 'build_type'][0]
+    return build_type
 
 
 def build_workspace_isolated(
@@ -441,8 +496,10 @@ def build_workspace_isolated(
     jobs=None,
     force_cmake=False,
     colorize=True,
+    build_packages=None,
     quiet=False,
-    cmake_args=[]
+    cmake_args=None,
+    make_args=None
 ):
     '''
     Runs ``cmake``, ``make`` and optionally ``make install`` for all
@@ -465,8 +522,11 @@ def build_workspace_isolated(
         package, ``bool``
     :param colorize: if True, colorize cmake output and other messages,
         ``bool``
+    :param build_packages: specific packages to build (all parent packages
+        in the topological order must have been built before), ``str``
     :param quiet: if True, hides some build output, ``bool``
     :param cmake_args: additional arguments for cmake, ``[str]``
+    :param make_args: additional arguments for make, ``[str]``
     '''
     if not colorize:
         disable_ANSI_colors()
@@ -475,9 +535,6 @@ def build_workspace_isolated(
     if not os.path.exists(workspace):
         sys.exit("Workspace path '{0}' does not exist.".format(workspace))
     workspace = os.path.abspath(workspace)
-
-    if cmake_args:
-        print("Additional CMake Arguments: " + " ".join(cmake_args))
 
     # Check source space existance
     if sourcespace is None:
@@ -509,6 +566,16 @@ def build_workspace_isolated(
     installspace = os.path.abspath(installspace)
     print('Install space: ' + str(installspace))
 
+    if cmake_args:
+        print("Additional CMake Arguments: " + " ".join(cmake_args))
+    else:
+        cmake_args = []
+
+    if make_args:
+        print("Additional make Arguments: " + " ".join(make_args))
+    else:
+        make_args = []
+
     # Check jobs
     if not jobs:
         try:
@@ -518,42 +585,44 @@ def build_workspace_isolated(
     jobs = int(jobs)
 
     # Find packages
-    packages = topological_order(sourcespace)
+    packages = find_packages(sourcespace, exclude_subspaces=True)
     if not packages:
         sys.exit("No packages found in source space: {0}".format(sourcespace))
 
+    # verify that specified package exists in workspace
+    if build_packages:
+        packages_by_name = {p.name: path for path, p in packages.iteritems()}
+        unknown_packages = [p for p in build_packages if p not in packages_by_name]
+        if unknown_packages:
+            sys.exit('Packages not found in the workspace: %s' % ', '.join(unknown_packages))
+
     # Report topological ordering
+    ordered_packages = topological_order_packages(packages)
     unknown_build_types = []
     msg = []
-    msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    msg.append('@{pf}~~@|  traversing packages in topological order:')
-    for path, package in packages:
+    msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~' + ('~' * len(str(len(ordered_packages)))))
+    msg.append('@{pf}~~@|  traversing %d packages in topological order:' % len(ordered_packages))
+    for path, package in ordered_packages:
         export_tags = [e.tagname for e in package.exports]
-        if 'metapackage' in export_tags:
+        if 'build_type' in export_tags:
+            build_type_tag = [e.content for e in package.exports
+                                        if e.tagname == 'build_type'][0]
+        else:
+            build_type_tag = 'catkin'
+        if build_type_tag == 'catkin':
+            msg.append('@{pf}~~@|  - @!@{bf}' + package.name + '@|')
+        elif build_type_tag == 'cmake':
             msg.append(
                 '@{pf}~~@|  - @!@{bf}' + package.name + '@|' +
-                ' (@{cf}metapackage@|)'
+                ' (@!@{cf}plain cmake@|)'
             )
         else:
-            if 'build_type' in export_tags:
-                build_type_tag = [e.content for e in package.exports
-                                            if e.tagname == 'build_type'][0]
-            else:
-                build_type_tag = 'catkin'
-            if build_type_tag == 'catkin':
-                msg.append('@{pf}~~@|  - @!@{bf}' + package.name + '@|')
-            elif build_type_tag == 'cmake':
-                msg.append(
-                    '@{pf}~~@|  - @!@{bf}' + package.name + '@|' +
-                    ' (@!@{cf}plain cmake@|)'
-                )
-            else:
-                msg.append(
-                    '@{pf}~~@|  - @!@{bf}' + package.name + '@|' +
-                    ' (@{rf}unknown@|)'
-                )
-                unknown_build_types.append(package)
-    msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+            msg.append(
+                '@{pf}~~@|  - @!@{bf}' + package.name + '@|' +
+                ' (@{rf}unknown@|)'
+            )
+            unknown_build_types.append(package)
+    msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~' + ('~' * len(str(len(ordered_packages)))))
     for index in range(len(msg)):
         msg[index] = fmt(msg[index])
     print('\n'.join(msg))
@@ -564,74 +633,84 @@ def build_workspace_isolated(
         sys.exit('Can not build workspace with packages of unknown build_type')
 
     # Check to see if the workspace has changed
-    if cmake_input_changed(
-        sourcespace, buildspace, cmake_args, 'catkin_make_isolated'
-    ):
-        force_cmake = True
-        print(colorize_line(
-            'Warning: packages or cmake arguments have changed, forcing cmake'
-        ))
+    if not force_cmake:
+        force_cmake, install_toggled = cmake_input_changed(packages, buildspace, install=install, cmake_args=cmake_args, filename='catkin_make_isolated')
+        if force_cmake:
+            print('The packages or cmake arguments have changed, forcing cmake invocation')
+        elif install_toggled:
+            print('The install argument has been toggled, forcing cmake invocation on plain cmake package')
 
     # Build packages
     original_develspace = copy.deepcopy(develspace)
     last_env = None
-    for index, path_package in enumerate(packages):
+    for index, path_package in enumerate(ordered_packages):
         path, package = path_package
         if not merge:
             develspace = os.path.join(original_develspace, package.name)
-        try:
-            last_env = build_package(
-                path, package,
-                workspace, buildspace, develspace, installspace,
-                install, jobs, force_cmake, quiet, last_env, cmake_args,
-                number=index + 1, of=len(packages)
-            )
-        except Exception as e:
-            cprint(
-                '@{rf}@!<==@| ' +
-                'Failed to process package \'@!@{bf}' +
-                package.name + '@|\': \n  ' +
-                ('KeyboardInterrupt' if isinstance(e, KeyboardInterrupt)
-                        else str(e))
-            )
-            if isinstance(e, subprocess.CalledProcessError):
-                cmd = ' '.join(e.cmd) if isinstance(e.cmd, list) else e.cmd
-                print(fmt("\n@{rf}Reproduce this error by running:"))
-                print(fmt("@{gf}@!==> @|") + cmd + "\n")
-            sys.exit('Command failed, exiting.')
+        if not build_packages or package.name in build_packages:
+            try:
+                export_tags = [e.tagname for e in package.exports]
+                is_cmake_package = 'cmake' in [e.content for e in package.exports if e.tagname == 'build_type']
+                last_env = build_package(
+                    path, package,
+                    workspace, buildspace, develspace, installspace,
+                    install, jobs, force_cmake or (install_toggled and is_cmake_package), quiet, last_env, cmake_args, make_args,
+                    number=index + 1, of=len(ordered_packages)
+                )
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                cprint(
+                    '@{rf}@!<==@| ' +
+                    'Failed to process package \'@!@{bf}' +
+                    package.name + '@|\': \n  ' +
+                    ('KeyboardInterrupt' if isinstance(e, KeyboardInterrupt)
+                            else str(e))
+                )
+                if isinstance(e, subprocess.CalledProcessError):
+                    cmd = ' '.join(e.cmd) if isinstance(e.cmd, list) else e.cmd
+                    print(fmt("\n@{rf}Reproduce this error by running:"))
+                    print(fmt("@{gf}@!==> @|") + cmd + "\n")
+                sys.exit('Command failed, exiting.')
+        else:
+            cprint("Skipping package: '@!@{bf}" + package.name + "@|'")
+            last_env = get_new_env(package, develspace, installspace, install, last_env)
 
     # Provide a top level devel space environment setup script
-    if not merge:
-        target_setup = os.path.join(original_develspace, 'setup')
-        with open(target_setup + '.sh', 'w') as f:
+    if not merge and not build_packages:
+        # generate env.sh and setup.sh which relay to last devel space
+        generated_env = os.path.join(original_develspace, 'env.sh')
+        with open(generated_env, 'w') as f:
             f.write("""\
-# Generated from catkin.builder module
+#!/usr/bin/env sh
+# generated from catkin.builder module
+
+{0} "$@"
+""".format(os.path.join(develspace, 'env.sh')))
+        os.chmod(generated_env, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
+        with open(os.path.join(original_develspace, 'setup.sh'), 'w') as f:
+            f.write("""\
+#!/usr/bin/env sh
+# generated from catkin.builder module
+
 . "{0}/setup.sh"
 """.format(develspace))
-        with open(target_setup + '.bash', 'w') as f:
-            f.write("""\
-# Generated from catkin.builder module
-CATKIN_SHELL=bash
-source "{0}"
-""".format(target_setup + '.sh'))
-        with open(target_setup + '.zsh', 'w') as f:
-            f.write("""\
-# Generated from catkin.builder module
-CATKIN_SHELL=zsh
-emulate sh # emulate POSIX
-. "{0}"
-emulate zsh # back to zsh mode
-""".format(target_setup + '.sh'))
+        # generate setup.bash and setup.zsh for convenience
+        variables = {'SETUP_DIR': original_develspace}
+        with open(os.path.join(original_develspace, 'setup.bash'), 'w') as f:
+            f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.bash.in'), variables))
+        with open(os.path.join(original_develspace, 'setup.zsh'), 'w') as f:
+            f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.zsh.in'), variables))
 
 
-def cmake_input_changed(source_path, build_path, cmake_args=None, filename='catkin_make'):
+def cmake_input_changed(packages, build_path, install=None, cmake_args=None, filename='catkin_make'):
     # get current input
-    packages = find_packages(source_path)
     package_paths = os.pathsep.join(sorted(packages.keys()))
     cmake_args = ' '.join(cmake_args) if cmake_args else ''
 
     # file to store current input
     changed = False
+    install_toggled = False
     input_filename = os.path.join(build_path, '%s.cache' % filename)
     if not os.path.exists(input_filename):
         changed = True
@@ -640,13 +719,16 @@ def cmake_input_changed(source_path, build_path, cmake_args=None, filename='catk
         with open(input_filename, 'r') as f:
             previous_package_paths = f.readline().rstrip()
             previous_cmake_args = f.readline().rstrip()
+            previous_install = f.readline().rstrip() == str(True)
         if package_paths != previous_package_paths:
             changed = True
         if cmake_args != previous_cmake_args:
             changed = True
+        if install is not None and install != previous_install:
+            install_toggled = True
 
     # store current input for next invocation
     with open(input_filename, 'w') as f:
-        f.write('%s\n%s' % (package_paths, cmake_args))
+        f.write('%s\n%s\n%s' % (package_paths, cmake_args, install))
 
-    return changed
+    return changed, install_toggled
