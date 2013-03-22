@@ -1,0 +1,25 @@
+From 71cf4a6edec373f050ac089a79bd8df992e2c76d Mon Sep 17 00:00:00 2001
+From: Dirk Thomas <dthomas@willowgarage.com>
+Date: Thu, 21 Mar 2013 18:36:15 -0700
+Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for hydro
+
+---
+ debian/rules.cmake.em |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/debian/rules.cmake.em b/debian/rules.cmake.em
+index d45dd5f..8de67c5 100644
+--- a/debian/rules.cmake.em
++++ b/debian/rules.cmake.em
+@@ -25,7 +25,7 @@ override_dh_auto_configure:
+ 	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
+ 	if [ -f "@(InstallationPrefix)/setup.sh" ]; then . "@(InstallationPrefix)/setup.sh"; fi && \
+ 	dh_auto_configure -- \
+-		-DCATKIN_BUILD_BINARY_PACKAGE="1" \
++#		-DCATKIN_BUILD_BINARY_PACKAGE="1" \
+ 		-DCMAKE_INSTALL_PREFIX="@(InstallationPrefix)" \
+ 		-DCMAKE_PREFIX_PATH="@(InstallationPrefix)"
+ 
+-- 
+1.7.10.4
+
