@@ -1,16 +1,16 @@
-From af053019e568fd30ee41f7fbc41b26d57516e158 Mon Sep 17 00:00:00 2001
+From 2049a384fde082998b0c1e4ea225bc6df2cedbe1 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
-Date: Thu, 21 Mar 2013 18:36:55 -0700
+Date: Thu, 21 Mar 2013 18:46:48 -0700
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for groovy
 
 ---
- debian/rules.cmake.em |    2 +-
+ debian/rules.em |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/debian/rules.cmake.em b/debian/rules.cmake.em
+diff --git a/debian/rules.em b/debian/rules.em
 index d45dd5f..8de67c5 100644
---- a/debian/rules.cmake.em
-+++ b/debian/rules.cmake.em
+--- a/debian/rules.em
++++ b/debian/rules.em
 @@ -25,7 +25,7 @@ override_dh_auto_configure:
  	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
  	if [ -f "@(InstallationPrefix)/setup.sh" ]; then . "@(InstallationPrefix)/setup.sh"; fi && \
