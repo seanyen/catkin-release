@@ -1,5 +1,5 @@
 #
-# Parse :ref:`package.xml` from ``CMAKE_CURRENT_SOURCE_DIR`` and
+# Parse package.xml from ``CMAKE_CURRENT_SOURCE_DIR`` and
 # make several information available to CMake.
 #
 # .. note:: It is called automatically by ``catkin_package()`` if not
@@ -17,6 +17,9 @@
 #   maintainer(s)
 # :outvar _CATKIN_CURRENT_PACKAGE: the name of the package from the
 #   manifest
+#
+# .. note:: It is calling ``catkin_destinations()`` which will provide
+#   additional output variables.
 #
 # @public
 #
@@ -39,6 +42,8 @@ macro(catkin_package_xml)
   if(NOT _CATKIN_CURRENT_PACKAGE STREQUAL PROJECT_NAME)
     message(FATAL_ERROR "catkin_package_xml() package name '${_CATKIN_CURRENT_PACKAGE}'  in '${_PACKAGE_XML_DIRECTORY}/package.xml' does not match current PROJECT_NAME '${PROJECT_NAME}'.  You must call project() with the same package name before.")
   endif()
+
+  catkin_destinations()
 endmacro()
 
 macro(_catkin_package_xml dest_dir)

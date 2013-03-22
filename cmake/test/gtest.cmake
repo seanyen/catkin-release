@@ -26,6 +26,10 @@ function(catkin_add_gtest target)
     return()
   endif()
 
+  if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    message(FATAL_ERROR "catkin_add_gtest() must be called after catkin_package() so that default output directories for the test binaries are defined")
+  endif()
+
   # XXX look for optional TIMEOUT argument, #2645
   cmake_parse_arguments(_gtest "" "TIMEOUT;WORKING_DIRECTORY" "" ${ARGN})
   if(_gtest_TIMEOUT)
@@ -113,4 +117,10 @@ else()
   set(GTEST_LIBRARIES ${GTEST_LIBRARIES} CACHE INTERNAL "")
   set(GTEST_MAIN_LIBRARIES ${GTEST_MAIN_LIBRARIES} CACHE INTERNAL "")
   set(GTEST_BOTH_LIBRARIES ${GTEST_BOTH_LIBRARIES} CACHE INTERNAL "")
+endif()
+# For Visual C++, need to increase variadic template size to build gtest
+if(GTEST_FOUND)
+  if(WIN32) 
+    add_definitions(/D _VARIADIC_MAX=10)
+  endif()
 endif()

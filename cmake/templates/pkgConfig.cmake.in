@@ -1,4 +1,4 @@
-# generated from catkin/cmake/template/pkg-config.cmake.in
+# generated from catkin/cmake/template/pkgConfig.cmake.in
 
 # append elements to a list if they are not already in the list
 # copied from catkin/cmake/list_append_unique.cmake to keep pkgConfig
@@ -57,25 +57,54 @@ if(@PROJECT_NAME@_CONFIG_INCLUDED)
 endif()
 set(@PROJECT_NAME@_CONFIG_INCLUDED TRUE)
 
+# set variables for source/devel/install prefixes
+if(@DEVELSPACE@)
+  set(@PROJECT_NAME@_SOURCE_PREFIX @CMAKE_CURRENT_SOURCE_DIR@)
+  set(@PROJECT_NAME@_DEVEL_PREFIX @CATKIN_DEVEL_PREFIX@)
+  set(@PROJECT_NAME@_INSTALL_PREFIX "")
+  set(@PROJECT_NAME@_PREFIX ${@PROJECT_NAME@_DEVEL_PREFIX})
+else()
+  set(@PROJECT_NAME@_SOURCE_PREFIX "")
+  set(@PROJECT_NAME@_DEVEL_PREFIX "")
+  set(@PROJECT_NAME@_INSTALL_PREFIX @CMAKE_INSTALL_PREFIX@)
+  set(@PROJECT_NAME@_PREFIX ${@PROJECT_NAME@_INSTALL_PREFIX})
+endif()
+
+# warn when using a deprecated package
+if(NOT "@PROJECT_DEPRECATED@" STREQUAL "")
+  set(_msg "WARNING: package '@PROJECT_NAME@' is deprecated")
+  # append custom deprecation text if available
+  if(NOT "@PROJECT_DEPRECATED@" STREQUAL "TRUE")
+    set(_msg "${_msg} (@PROJECT_DEPRECATED@)")
+  endif()
+  message("${_msg}")
+endif()
+
 # flag project as catkin-based to distinguish if a find_package()-ed project is a catkin project
 set(@PROJECT_NAME@_FOUND_CATKIN_PROJECT TRUE)
 
-if(NOT "X@PROJECT_INCLUDE_DIRS@" STREQUAL "X")
+if(NOT "@PROJECT_ABSOLUTE_INCLUDE_DIRS@" STREQUAL "")
   set(@PROJECT_NAME@_INCLUDE_DIRS "")
-  foreach(idir @PROJECT_INCLUDE_DIRS@)
+  set(absolute_include_dirs "@PROJECT_ABSOLUTE_INCLUDE_DIRS@")
+  foreach(idir ${absolute_include_dirs})
     if(IS_ABSOLUTE ${idir} AND IS_DIRECTORY ${idir})
       set(include ${idir})
     elseif(IS_DIRECTORY @PKG_INCLUDE_PREFIX@/${idir})
       set(include @PKG_INCLUDE_PREFIX@/${idir})
     else()
-      message(FATAL_ERROR "Project '@PROJECT_NAME@' specifies '${idir}' as an include dir, which is not found.  It does neither exist as an absolute directory nor in '@PKG_INCLUDE_PREFIX@/${idir}'.  Ask the maintainer '${@PROJECT_NAME@_MAINTAINER}' to fix it.")
+      message(FATAL_ERROR "Project '@PROJECT_NAME@' specifies '${idir}' as an include dir, which is not found.  It does neither exist as an absolute directory nor in '@PKG_INCLUDE_PREFIX@/${idir}'.  Ask the maintainer '@PROJECT_MAINTAINER@' to fix it.")
     endif()
     _list_append_unique(@PROJECT_NAME@_INCLUDE_DIRS ${include})
   endforeach()
 endif()
 
-foreach(library @PROJECT_LIBRARIES@)
-  if(NOT TARGET ${library})
+set(libraries "@PKG_CONFIG_LIBRARIES@")
+foreach(library ${libraries})
+  if(TARGET ${library})
+    list(APPEND @PROJECT_NAME@_LIBRARIES ${library})
+  elseif(IS_ABSOLUTE ${library})
+    list(APPEND @PROJECT_NAME@_LIBRARIES ${library})
+  else()
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
@@ -95,12 +124,18 @@ foreach(library @PROJECT_LIBRARIES@)
       # as a fall back for non-catkin libraries try to search globally
       find_library(lib ${library})
       if(NOT lib)
-        message(FATAL_ERROR "Project '${PROJECT_NAME}' tried to find library '${library}'.  The library is neither a target nor built/installed properly.  Did you compiled project '@PROJECT_NAME@'?  Did you find_package() it before the subdirectory containing its code is included?")
+        message(FATAL_ERROR "Project '${PROJECT_NAME}' tried to find library '${library}'.  The library is neither a target nor built/installed properly.  Did you compile project '@PROJECT_NAME@'?  Did you find_package() it before the subdirectory containing its code is included?")
       endif()
       list(APPEND @PROJECT_NAME@_LIBRARIES ${lib})
     endif()
-  else()
-    list(APPEND @PROJECT_NAME@_LIBRARIES ${library})
+  endif()
+endforeach()
+
+set(@PROJECT_NAME@_EXPORTED_TARGETS "@PKG_EXPORTED_TARGETS@")
+# create dummy targets for exported code generation targets to make life of users easier
+foreach(t ${@PROJECT_NAME@_EXPORTED_TARGETS})
+  if(NOT TARGET ${t})
+    add_custom_target(${t})
   endif()
 endforeach()
 
@@ -123,12 +158,17 @@ foreach(depend ${depends})
   _list_append_unique(@PROJECT_NAME@_INCLUDE_DIRS ${${@PROJECT_NAME@_dep}_INCLUDE_DIRS})
   list(APPEND @PROJECT_NAME@_LIBRARIES ${${@PROJECT_NAME@_dep}_LIBRARIES})
   _list_append_unique(@PROJECT_NAME@_LIBRARY_DIRS ${${@PROJECT_NAME@_dep}_LIBRARY_DIRS})
+  list(APPEND @PROJECT_NAME@_EXPORTED_TARGETS ${${@PROJECT_NAME@_dep}_EXPORTED_TARGETS})
 endforeach()
 
 if(@PROJECT_NAME@_LIBRARIES)
   _remove_duplicate_libraries(@PROJECT_NAME@_LIBRARIES @PROJECT_NAME@_LIBRARIES)
 endif()
 
-foreach(extra @PROJECT_CFG_EXTRAS@)
-  include("@PKG_CMAKE_DIR@/${extra}")
+set(pkg_cfg_extras "@PKG_CFG_EXTRAS@")
+foreach(extra ${pkg_cfg_extras})
+  if(NOT IS_ABSOLUTE ${extra})
+    set(extra ${@PROJECT_NAME@_DIR}/${extra})
+  endif()
+  include(${extra})
 endforeach()

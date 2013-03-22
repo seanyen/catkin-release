@@ -8,6 +8,28 @@ if(NOT DEFINED catkin_EXTRAS_DIR)
   message(FATAL_ERROR "catkin_EXTRAS_DIR is not set")
 endif()
 
+# define devel space
+if(CATKIN_DEVEL_PREFIX)
+  set(CATKIN_DEVEL_PREFIX ${CATKIN_DEVEL_PREFIX} CACHE PATH "catkin devel space")
+else()
+  set(CATKIN_DEVEL_PREFIX "${CMAKE_BINARY_DIR}/devel")
+endif()
+message(STATUS "Using CATKIN_DEVEL_PREFIX: ${CATKIN_DEVEL_PREFIX}")
+
+# create workspace marker
+set(_sourcespaces "${CMAKE_SOURCE_DIR}")
+if(EXISTS "${CATKIN_DEVEL_PREFIX}/.catkin")
+  # prepend to existing list of sourcespaces
+  file(READ "${CATKIN_DEVEL_PREFIX}/.catkin" _existing_sourcespaces)
+  list(FIND _existing_sourcespaces "${CMAKE_SOURCE_DIR}" _index)
+  if(_index EQUAL -1)
+    list(INSERT _existing_sourcespaces 0 ${CMAKE_SOURCE_DIR})
+  endif()
+  set(_sourcespaces ${_existing_sourcespaces})
+endif()
+file(WRITE "${CATKIN_DEVEL_PREFIX}/.catkin" "${_sourcespaces}")
+
+
 # use either CMAKE_PREFIX_PATH explicitly passed to CMake as a command line argument
 # or CMAKE_PREFIX_PATH from the environment
 if(NOT DEFINED CMAKE_PREFIX_PATH)
@@ -15,14 +37,14 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
     string(REPLACE ":" ";" CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})
   endif()
 endif()
-if(CMAKE_PREFIX_PATH)
-  message(STATUS "Using CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
-endif()
+message(STATUS "Using CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+# store original CMAKE_PREFIX_PATH
+set(CMAKE_PREFIX_PATH_AS_IS ${CMAKE_PREFIX_PATH})
 
 # list of unique catkin workspaces based on CMAKE_PREFIX_PATH
 set(CATKIN_WORKSPACES "")
 foreach(path ${CMAKE_PREFIX_PATH})
-  if(EXISTS "${path}/.CATKIN_WORKSPACE")
+  if(EXISTS "${path}/.catkin")
     list(FIND CATKIN_WORKSPACES ${path} _index)
     if(_index EQUAL -1)
       list(APPEND CATKIN_WORKSPACES ${path})
@@ -33,34 +55,37 @@ if(CATKIN_WORKSPACES)
   message(STATUS "This workspace overlays: ${CATKIN_WORKSPACES}")
 endif()
 
-# save original CMAKE_PREFIX_PATH for environment generation
-set(CMAKE_PREFIX_PATH_WITHOUT_BUILDSPACE ${CMAKE_PREFIX_PATH})
-
-# define buildspace
-set(CATKIN_BUILD_PREFIX "${CMAKE_BINARY_DIR}/buildspace")
-# prepend buildspace to CMAKE_PREFIX_PATH
-list(INSERT CMAKE_PREFIX_PATH 0 ${CATKIN_BUILD_PREFIX})
+# prepend devel space to CMAKE_PREFIX_PATH
+list(FIND CMAKE_PREFIX_PATH ${CATKIN_DEVEL_PREFIX} _index)
+if(_index EQUAL -1)
+  list(INSERT CMAKE_PREFIX_PATH 0 ${CATKIN_DEVEL_PREFIX})
+endif()
 
 
-# enable all new policies
-cmake_policy(SET CMP0000 NEW)
-cmake_policy(SET CMP0001 NEW)
-cmake_policy(SET CMP0002 NEW)
-cmake_policy(SET CMP0003 NEW)
-cmake_policy(SET CMP0004 NEW)
-cmake_policy(SET CMP0005 NEW)
-cmake_policy(SET CMP0006 NEW)
-cmake_policy(SET CMP0007 NEW)
-cmake_policy(SET CMP0008 NEW)
-cmake_policy(SET CMP0009 NEW)
-cmake_policy(SET CMP0010 NEW)
-cmake_policy(SET CMP0011 NEW)
-cmake_policy(SET CMP0012 NEW)
-cmake_policy(SET CMP0013 NEW)
-cmake_policy(SET CMP0014 NEW)
-cmake_policy(SET CMP0015 NEW)
-cmake_policy(SET CMP0016 NEW)
-cmake_policy(SET CMP0017 NEW)
+# enable all new policies (if available)
+macro(_set_cmake_policy_to_new_if_available policy)
+  if(POLICY ${policy})
+    cmake_policy(SET ${policy} NEW)
+  endif()
+endmacro()
+_set_cmake_policy_to_new_if_available(CMP0000)
+_set_cmake_policy_to_new_if_available(CMP0001)
+_set_cmake_policy_to_new_if_available(CMP0002)
+_set_cmake_policy_to_new_if_available(CMP0003)
+_set_cmake_policy_to_new_if_available(CMP0004)
+_set_cmake_policy_to_new_if_available(CMP0005)
+_set_cmake_policy_to_new_if_available(CMP0006)
+_set_cmake_policy_to_new_if_available(CMP0007)
+_set_cmake_policy_to_new_if_available(CMP0008)
+_set_cmake_policy_to_new_if_available(CMP0009)
+_set_cmake_policy_to_new_if_available(CMP0010)
+_set_cmake_policy_to_new_if_available(CMP0011)
+_set_cmake_policy_to_new_if_available(CMP0012)
+_set_cmake_policy_to_new_if_available(CMP0013)
+_set_cmake_policy_to_new_if_available(CMP0014)
+_set_cmake_policy_to_new_if_available(CMP0015)
+_set_cmake_policy_to_new_if_available(CMP0016)
+_set_cmake_policy_to_new_if_available(CMP0017)
 
 # the following operations must be performed inside a project context
 if(NOT PROJECT_NAME)
@@ -75,7 +100,9 @@ include(CMakeParseArguments)
 foreach(filename
     assert
     catkin_add_env_hooks
+    catkin_destinations
     catkin_generate_environment
+    catkin_metapackage
     catkin_package
     catkin_package_xml
     catkin_workspace
@@ -84,7 +111,9 @@ foreach(filename
     python # defines PYTHON_EXECUTABLE, required by empy
     empy
     find_program_required
+    legacy
     list_append_unique
+    list_insert_in_workspace_order
     parse_arguments
     safe_execute_process
     stamp
@@ -107,6 +136,8 @@ endforeach()
 # output catkin version for debugging
 _catkin_package_xml(${CMAKE_BINARY_DIR}/catkin/catkin_generated/version DIRECTORY ${catkin_EXTRAS_DIR}/..)
 message(STATUS "catkin ${catkin_VERSION}")
+# ensure that no current package name is set
+unset(_CATKIN_CURRENT_PACKAGE)
 
 # set global install destinations
 set(CATKIN_GLOBAL_BIN_DESTINATION bin)
@@ -130,32 +161,31 @@ if(CMAKE_HOST_UNIX) # true for linux, apple, mingw-cross and cygwin
 else()
   set(script_ext bat)
 endif()
-if(CATKIN_STATIC_ENV)
-  # static environment avoid to call env script at all and uses current environment including the knowledge about the effects of the local setup.sh without evaluating it
-  message(STATUS "Generating static environment")
-  set(CATKIN_STATIC_ENV TRUE CACHE BOOL "Generate static environment")
-endif()
-# take snapshot of the modifications the env script causes
+# take snapshot of the modifications the setup script causes
 # to reproduce the same changes with a static script in a fraction of the time
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/catkin_generated/tmp)
-em_expand(${catkin_EXTRAS_DIR}/templates/env_cached.context.py.in
-  ${CMAKE_BINARY_DIR}/catkin_generated/env_cached.buildspace.context.py
-  ${catkin_EXTRAS_DIR}/em/env_cached.em
-  ${CMAKE_BINARY_DIR}/catkin_generated/tmp/env_cached.${script_ext})
-file(COPY ${CMAKE_BINARY_DIR}/catkin_generated/tmp/env_cached.${script_ext}
-  DESTINATION ${CMAKE_BINARY_DIR}/catkin_generated
-  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_WRITE GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+set(SETUP_DIR ${CMAKE_BINARY_DIR}/catkin_generated)
+set(SETUP_FILENAME "setup_cached")
+configure_file(${catkin_EXTRAS_DIR}/templates/generate_cached_setup.py.in
+  ${CMAKE_BINARY_DIR}/catkin_generated/generate_cached_setup.py)
+set(GENERATE_ENVIRONMENT_CACHE_COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/catkin_generated/generate_cached_setup.py)
+# the script is generated once here and refreshed by every call to catkin_add_env_hooks()
+safe_execute_process(COMMAND ${GENERATE_ENVIRONMENT_CACHE_COMMAND})
+# generate env_cached which just relays to the setup_cached
+configure_file(${catkin_EXTRAS_DIR}/templates/env.${script_ext}.in
+  ${SETUP_DIR}/env_cached.${script_ext}
+  @ONLY)
 # environment to call external processes
-set(CATKIN_ENV ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/env_cached.${script_ext} CACHE INTERNAL "catkin environment")
+set(CATKIN_ENV ${SETUP_DIR}/env_cached.${script_ext} CACHE INTERNAL "catkin environment")
 
 # add additional environment hooks
-if(CATKIN_BUILD_BINARY_PACKAGE AND NOT "${PROJECT_NAME}" STREQUAL "catkin")
+if(CATKIN_BUILD_BINARY_PACKAGE)
   set(catkin_skip_install_env_hooks "SKIP_INSTALL")
 endif()
-catkin_add_env_hooks(05.catkin-test-results SHELLS bat sh DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
+if(CMAKE_HOST_UNIX)
+  catkin_add_env_hooks(05.catkin-test-results SHELLS sh DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
+else()
+  catkin_add_env_hooks(05.catkin-test-results SHELLS bat DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
+endif()
 
-foreach(filename
-    catkin_python_setup # requires stamp and environment files
-  )
-  include(${catkin_EXTRAS_DIR}/${filename}.cmake)
-endforeach()
+# requires stamp and environment files
+include(${catkin_EXTRAS_DIR}/catkin_python_setup.cmake)

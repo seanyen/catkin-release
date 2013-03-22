@@ -19,62 +19,59 @@
 #   this will break if the logical target names are not the same as
 #   the installed names.
 # :type LIBRARIES: list of strings
+# :param CATKIN_DEPENDS: a list of catkin projects which this project
+#   depends on.  It is used when client code finds this project via
+#   ``find_package()`` or ``pkg-config``.  Each project listed will in
+#   turn be ``find_package``\ -ed or is states as ``Requires`` in the
+#   .pc file.  Therefore their ``INCLUDE_DIRS`` and ``LIBRARIES`` will
+#   be appended to ours.  Only catkin projects should be used where it
+#   be guarantee that they are *find_packagable* and have pkg-config
+#   files.
+# :type CATKIN_DEPENDS: list of strings
 # :param DEPENDS: a list of CMake projects which this project depends
-#   on.  It is used when client code finds this project via
-#   ``find_package()``.  Each project listed will in turn be
-#   ``find_package``\ -ed and their ``INCLUDE_DIRS`` and ``LIBRARIES``
-#   will be appended to ours.  Only projects should be used where we
-#   can guarantee that they are *find_packagable*. If they are not
-#   catkin packages they are not added to the ``requires`` list in
-#   the pkg-config file since we can not ensure that they are
-#   *package_configurable*.
+#   on.  Since they might not be *find_packagable* or lack a pkg-config
+#   file their ``INCLUDE_DIRS`` and ``LIBRARIES`` are passed directly.
+#   This requires that it has been ``find_package``\ -ed before.
 # :type DEPENDS: list of strings
 # :param CFG_EXTRAS: a CMake file containing extra stuff that should
 #   be accessible to users of this package after
 #   ``find_package``\ -ing it.  This file must live in the
-#   subdirectory ``cmake`` and must have the additional extension
-#   ``.in`` (since it is expanded using CMake's ``configure_file()``).
-#   The template can distinguish between build- and installspace
-#   using the boolean variables ``BUILDSPACE`` and ``INSTALLSPACE``
-#   and should be verified to work in both cases.
+#   subdirectory ``cmake`` or be an absolute path.  Various additional
+#   file extension are possible:
+#   for a plain cmake file just ``.cmake``, for files expanded using
+#   CMake's ``configure_file()`` use ``.cmake.in`` or for files expanded
+#   by empy use ``.cmake.em``.  The templates can distinguish between
+#   devel- and installspace using the boolean variables ``DEVELSPACE``
+#   and ``INSTALLSPACE``.  For templated files it is also possible to
+#   use the extensions ``.cmake.develspace.(in|em)`` or
+#   ``.cmake.installspace.(em|in)`` to generate the files only for a
+#   specific case.
+#   If the global variable ${PROJECT_NAME}_CFG_EXTRAS is set it will be
+#   prepended to the explicitly passed argument.
 # :type CFG_EXTRAS: string
-#
-# :outvar CATKIN_PACKAGE_BIN_DESTINATION:
-#   See :cmake:data:`CATKIN_PACKAGE_BIN_DESTINATION`.
-# :outvar CATKIN_PACKAGE_ETC_DESTINATION:
-#   See :cmake:data:`CATKIN_PACKAGE_ETC_DESTINATION`.
-# :outvar CATKIN_PACKAGE_INCLUDE_DESTINATION:
-#   See :cmake:data:`CATKIN_PACKAGE_INCLUDE_DESTINATION`.
-# :outvar CATKIN_PACKAGE_LIB_DESTINATION:
-#   See :cmake:data:`CATKIN_PACKAGE_LIB_DESTINATION`.
-# :outvar CATKIN_PACKAGE_PYTHON_DESTINATION:
-#   See :cmake:data:`CATKIN_PACKAGE_PYTHON_DESTINATION`.
-# :outvar CATKIN_PACKAGE_SHARE_DESTINATION:
-#   See :cmake:data:`CATKIN_PACKAGE_SHARE_DESTINATION`.
-#
-# :outvar CATKIN_GLOBAL_BIN_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_BIN_DESTINATION`.
-# :outvar CATKIN_GLOBAL_ETC_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_ETC_DESTINATION`.
-# :outvar CATKIN_GLOBAL_INCLUDE_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_INCLUDE_DESTINATION`.
-# :outvar CATKIN_GLOBAL_LIB_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_LIB_DESTINATION`.
-# :outvar CATKIN_GLOBAL_LIBEXEC_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_LIBEXEC_DESTINATION`.
-# :outvar CATKIN_GLOBAL_PYTHON_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_PYTHON_DESTINATION`.
-# :outvar CATKIN_GLOBAL_SHARE_DESTINATION:
-#   See :cmake:data:`CATKIN_GLOBAL_SHARE_DESTINATION`.
+# :param EXPORTED_TARGETS: a list of target names which usually generate
+#   code. Downstream packages can depend on these targets to ensure that
+#   code is generated before it is being used. The generated CMake config
+#   file will ensure that the targets exists.
+#   If the global variable ${PROJECT_NAME}_EXPORTED_TARGETS is
+#   set it will be prepended to the explicitly passed argument.
+# :type EXPORTED_TARGETS: string
+# :param SKIP_CMAKE_CONFIG_GENERATION: the option to skip the generation
+#   of the CMake config files for the package
+# :type SKIP_CMAKE_CONFIG_GENERATION: bool
+# :param SKIP_PKG_CONFIG_GENERATION: the option to skip the generation of
+#   the pkg-config file for the package
+# :type SKIP_PKG_CONFIG_GENERATION: bool
 #
 # Example:
 # ::
 #
 #   catkin_package(
 #     INCLUDE_DIRS include
-#     LIBRARIES proj-one proj-two
-#     DEPENDS roscpp
-#     CFG_EXTRAS proj-extras.cmake
+#     LIBRARIES projlib1 projlib2
+#     CATKIN-DEPENDS roscpp
+#     DEPENDS Eigen
+#     CFG_EXTRAS proj-extras[.cmake|.cmake.in|.cmake(.develspace|.installspace)?.em]
 #   )
 #
 # @public
@@ -90,36 +87,37 @@ macro(catkin_package)
     message(FATAL_ERROR "catkin_package() PROJECT_NAME is set to 'Project', which is not a valid project name. You must call project() before calling catkin_package().")
   endif()
 
-  # call catkin_package_xml() if it has not been called manually before
+  # mark that catkin_package() was called in order to detect wrong order of calling with generate_messages()
+  set(${PROJECT_NAME}_CATKIN_PACKAGE TRUE)
+
+  # call catkin_package_xml() if it has not been called before
   if(NOT _CATKIN_CURRENT_PACKAGE)
     catkin_package_xml()
   endif()
-
-  #
-  # BUILD AND INSTALL DESTINATIONS
-  #
-
-  # set project specific install destinations
-  set(CATKIN_PACKAGE_BIN_DESTINATION ${CATKIN_GLOBAL_LIBEXEC_DESTINATION}/${PROJECT_NAME})
-  set(CATKIN_PACKAGE_ETC_DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}/${PROJECT_NAME})
-  set(CATKIN_PACKAGE_INCLUDE_DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME})
-  set(CATKIN_PACKAGE_LIB_DESTINATION ${CATKIN_GLOBAL_LIB_DESTINATION})
-  set(CATKIN_PACKAGE_PYTHON_DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION}/${PROJECT_NAME})
-  set(CATKIN_PACKAGE_SHARE_DESTINATION ${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME})
-
-  # set project specific output directory for libraries
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION})
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION})
-  # set project specific output directory for binaries
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CATKIN_BUILD_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
   _catkin_package(${ARGN})
 endmacro()
 
 function(_catkin_package)
-  _parse_arguments_with_repeated_keywords(PROJECT "" "" "INCLUDE_DIRS;LIBRARIES;CFG_EXTRAS" "DEPENDS" ${ARGN})
+  cmake_parse_arguments(PROJECT "SKIP_CMAKE_CONFIG_GENERATION;SKIP_PKG_CONFIG_GENERATION" "" "INCLUDE_DIRS;LIBRARIES;CATKIN_DEPENDS;DEPENDS;CFG_EXTRAS" ${ARGN})
   if(PROJECT_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "catkin_package() called with unused arguments: ${PROJECT_UNPARSED_ARGUMENTS}")
+  endif()
+
+  if(NOT ${PROJECT_NAME} STREQUAL "catkin")
+    list(FIND ${PROJECT_NAME}_BUILDTOOL_DEPENDS "catkin" _index)
+    if(_index EQUAL -1)
+      list(FIND ${PROJECT_NAME}_BUILD_DEPENDS "catkin" _index)
+      if(_index EQUAL -1)
+        message(FATAL_ERROR "catkin_package() 'catkin' must be listed as a buildtool dependency in the package.xml")
+      endif()
+      message("WARNING: 'catkin' should be listed as a buildtool dependency in the package.xml (instead of build dependency)")
+    endif()
+  endif()
+
+  # prepend INCLUDE_DIRS passed using a variable
+  if(${PROJECT_NAME}_INCLUDE_DIRS)
+    list(INSERT PROJECT_INCLUDE_DIRS 0 ${${PROJECT_NAME}_INCLUDE_DIRS})
   endif()
 
   # unset previously found directory of this package, so that this package overlays the other cleanly
@@ -127,8 +125,10 @@ function(_catkin_package)
     set(${PROJECT_NAME}_DIR "" CACHE PATH "" FORCE)
   endif()
 
-  # split DEPENDS with multiple packages into separate items
-  set(PROJECT_DEPENDENCIES "")
+  set(_PROJECT_CATKIN_DEPENDS ${PROJECT_CATKIN_DEPENDS})
+
+  set(PROJECT_DEPENDENCIES_INCLUDE_DIRS "")
+  set(PROJECT_DEPENDENCIES_LIBRARIES "")
   foreach(depend ${PROJECT_DEPENDS})
     string(REPLACE " " ";" depend_list ${depend})
     # check if the second argument is the COMPONENTS keyword
@@ -138,48 +138,71 @@ function(_catkin_package)
       list(GET depend_list 1 second_item)
     endif()
     if("${second_item}" STREQUAL "COMPONENTS")
-      # pass dependencies with components as is
-      list(APPEND PROJECT_DEPENDENCIES ${depend})
+      list(GET depend_list 0 depend_name)
+      if(NOT ${${depend_name}_FOUND})
+        message(FATAL_ERROR "catkin_package() DEPENDS on '${depend}' which must be find_package()-ed before")
+      endif()
+      message(WARNING "catkin_package() DEPENDS on '${depend}' which is deprecated. find_package() it before and only DEPENDS on '${depend_name}' instead")
+      list(APPEND PROJECT_DEPENDENCIES_INCLUDE_DIRS ${${depend_name}_INCLUDE_DIRS})
+      list(APPEND PROJECT_DEPENDENCIES_LIBRARIES ${${depend_name}_LIBRARIES})
     else()
-      # split multiple names (without components) into separate dependencies
-      foreach(dep ${depend_list})
-        list(APPEND PROJECT_DEPENDENCIES ${dep})
+      # split multiple names (without COMPONENTS) into separate dependencies
+      foreach(depend_name ${depend_list})
+        if(${depend_name}_FOUND_CATKIN_PROJECT)
+          #message(WARNING "catkin_package() DEPENDS on catkin package '${depend_name}' which is deprecated. Use CATKIN_DEPENDS for catkin packages instead.")
+          list(APPEND _PROJECT_CATKIN_DEPENDS ${depend_name})
+        else()
+          if(NOT ${${depend_name}_FOUND})
+            message(FATAL_ERROR "catkin_package() DEPENDS on '${depend_name}' which must be find_package()-ed before. If it is a catkin package it can be declared as CATKIN_DEPENDS instead without find_package()-ing it.")
+          endif()
+          list(APPEND PROJECT_DEPENDENCIES_INCLUDE_DIRS ${${depend_name}_INCLUDE_DIRS})
+          list(APPEND PROJECT_DEPENDENCIES_LIBRARIES ${${depend_name}_LIBRARIES})
+        endif()
       endforeach()
     endif()
   endforeach()
 
-  # filter out dependencies which have not been find_package()-ed before
-  foreach(depend ${PROJECT_DEPENDENCIES})
-    string(REPLACE " " ";" depend_list ${depend})
-    list(GET depend_list 0 depend_name)
-    if(NOT ${depend_name}_FOUND)
-      message(WARNING "catkin_package(${PROJECT_NAME}) depends on '${depend_name}' which has not been find_package()-ed before")
-      list(REMOVE_ITEM PROJECT_DEPENDENCIES ${depend})
-    endif()
-  endforeach()
-
-  # extract all catkin packages from dependencies
-  set(PROJECT_CATKIN_DEPENDS "")
-  foreach(depend ${PROJECT_DEPENDENCIES})
-    string(REPLACE " " ";" depend_list ${depend})
-    # check if dependency is a catkin package
-    list(GET depend_list 0 depend_name)
-    if(${${depend_name}_FOUND_CATKIN_PROJECT})
-      list(APPEND PROJECT_CATKIN_DEPENDS ${depend_name})
-      # verify that all catkin dependencies are listed as build- and runtime dependencies
-      list(FIND ${PROJECT_NAME}_BUILD_DEPENDS ${depend_name} _index)
-      if(_index EQUAL -1)
-        message(FATAL_ERROR "catkin_package(${PROJECT_NAME}) depends on catkin package '${depend_name}' which must therefore be listed as a build dependency in the package.xml")
+  # for catkin packages it can be guaranteed that they are find_package()-able and have pkg-config files
+  set(PROJECT_DEPENDENCIES "")
+  foreach(depend_name ${_PROJECT_CATKIN_DEPENDS})
+    # verify that all catkin packages which have been find_package()-ed are listed as build dependencies
+    if(${depend_name}_FOUND)
+      # verify that these packages are really catkin packages
+      if(NOT ${depend_name}_FOUND_CATKIN_PROJECT)
+        if(DEFINED ${depend_name}_CONFIG)
+          message(FATAL_ERROR "catkin_package() CATKIN_DEPENDS on '${depend_name}', which has been found in '${${depend_name}_CONFIG}', but it is not a catkin package")
+        else()
+          message(FATAL_ERROR "catkin_package() CATKIN_DEPENDS on '${depend_name}', but it is not a catkin package")
+        endif()
       endif()
-      list(FIND ${PROJECT_NAME}_RUN_DEPENDS ${depend_name} _index)
-      if(_index EQUAL -1)
-        message(FATAL_ERROR "catkin_package(${PROJECT_NAME}) depends on catkin package '${depend_name}' which must therefore be listed as a run dependency in the package.xml")
+      if(catkin_ALL_FOUND_COMPONENTS)
+        list(FIND catkin_ALL_FOUND_COMPONENTS ${depend_name} _index)
+      else()
+        set(_index -1)
+      endif()
+      if(NOT _index EQUAL -1)
+        list(FIND ${PROJECT_NAME}_BUILD_DEPENDS ${depend_name} _index)
+        if(_index EQUAL -1)
+          message(FATAL_ERROR "catkin_package() the catkin package '${depend_name}' has been find_package()-ed but is not listed as a build dependency in the package.xml")
+        endif()
       endif()
     endif()
+    # verify that all catkin packages are listed as run dependencies
+    list(FIND ${PROJECT_NAME}_RUN_DEPENDS ${depend_name} _index)
+    if(_index EQUAL -1)
+      message(FATAL_ERROR "catkin_package() DEPENDS on the catkin package '${depend_name}' which must therefore be listed as a run dependency in the package.xml")
+    endif()
+    list(APPEND PROJECT_DEPENDENCIES ${depend_name})
   endforeach()
 
   # package version provided by package.cmake/xml
   set(PROJECT_VERSION ${${PROJECT_NAME}_VERSION})
+
+  # flag if package is deprecated provided by package.cmake/xml
+  set(PROJECT_DEPRECATED ${${PROJECT_NAME}_DEPRECATED})
+
+  # package maintainer provided by package.cmake/xml
+  set(PROJECT_MAINTAINER ${${PROJECT_NAME}_MAINTAINER})
 
   # get library paths from all workspaces
   set(lib_paths "")
@@ -187,14 +210,97 @@ function(_catkin_package)
     list_append_unique(lib_paths ${workspace}/lib)
   endforeach()
 
+  # merge explicitly listed libraries and libraries from non-catkin but find_package()-ed packages
+  set(_PKG_CONFIG_LIBRARIES "")
+  if(PROJECT_LIBRARIES)
+    list(APPEND _PKG_CONFIG_LIBRARIES ${PROJECT_LIBRARIES})
+  endif()
+  if(PROJECT_DEPENDENCIES_LIBRARIES)
+    list(APPEND _PKG_CONFIG_LIBRARIES ${PROJECT_DEPENDENCIES_LIBRARIES})
+  endif()
+
+  # filter out build configuration keywords and non-matching libraries
+  set(PKG_CONFIG_LIBRARIES "")
+  list(LENGTH _PKG_CONFIG_LIBRARIES _count)
+  set(_index 0)
+  while(${_index} LESS ${_count})
+    list(GET _PKG_CONFIG_LIBRARIES ${_index} library)
+    if("${library}" STREQUAL "debug")
+      if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        # skip keyword and debug library for non-debug builds
+        math(EXPR _index "${_index} + 1")
+        if(${_index} EQUAL ${_count})
+          message(FATAL_ERROR "catkin_package() the list of libraries '${_PKG_CONFIG_LIBRARIES}' ends with '${library}' which is a build configuration keyword and must be followed by a library")
+        endif()
+      endif()
+    elseif("${library}" STREQUAL "optimized")
+      if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        # skip keyword and non-debug library for debug builds
+        math(EXPR _index "${_index} + 1")
+        if(${_index} EQUAL ${_count})
+          message(FATAL_ERROR "catkin_package() the list of libraries '${_PKG_CONFIG_LIBRARIES}' ends with '${library}' which is a build configuration keyword and must be followed by a library")
+        endif()
+      endif()
+    elseif("${library}" STREQUAL "general")
+      if(${_index} EQUAL ${_count})
+        message(FATAL_ERROR "catkin_package() the list of libraries '${_PKG_CONFIG_LIBRARIES}' ends with '${library}' which is a build configuration keyword and must be followed by a library")
+      endif()
+    elseif(NOT "${library}" STREQUAL "")
+      if(TARGET ${library})
+        # Sometimes cmake dependencies define imported targets, in which
+        # case the imported library information is not the target name, but
+        # the information embedded in cmake properties inside the imported library.
+        get_target_property(${library}_imported ${library} IMPORTED)
+        if(${${library}_imported})
+          set(imported_libraries)  # empty list
+          get_target_property(${library}_imported_implib ${library} IMPORTED_IMPLIB)
+          if(${library}_imported_implib)
+            list(APPEND imported_libraries ${${library}_imported_implib})
+          else()
+            get_target_property(${library}_imported_configurations ${library} IMPORTED_CONFIGURATIONS)
+            foreach(cfg ${${library}_imported_configurations})
+              get_target_property(${library}_imported_implib_${cfg} ${library} IMPORTED_IMPLIB_${cfg})
+              list(APPEND imported_libraries ${${library}_imported_implib_${cfg}})
+            endforeach()
+          endif()
+          if(imported_libraries)
+            foreach(imp_lib ${imported_libraries})
+              list(APPEND PKG_CONFIG_LIBRARIES ${imp_lib})
+            endforeach()
+          endif()
+        else()
+          # Not an imported library target
+          list(APPEND PKG_CONFIG_LIBRARIES ${library})
+        endif()
+      else()
+        list(APPEND PKG_CONFIG_LIBRARIES ${library})
+      endif()
+    endif()
+    math(EXPR _index "${_index} + 1")
+  endwhile()
+
+  set(PKG_CONFIG_LIBRARIES_WITH_PREFIX "")
+  foreach(library ${PKG_CONFIG_LIBRARIES})
+    if(IS_ABSOLUTE ${library})
+      get_filename_component(suffix ${library} EXT)
+      if(NOT "${suffix}" STREQUAL "${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        set(library "-l:${library}")
+      endif()
+    else()
+      set(library "-l${library}")
+    endif()
+    list(APPEND PKG_CONFIG_LIBRARIES_WITH_PREFIX ${library})
+  endforeach()
+
   #
-  # BUILDSPACE
+  # DEVEL SPACE
   #
 
-  set(BUILDSPACE TRUE)
+  # used in the cmake extra files
+  set(DEVELSPACE TRUE)
   set(INSTALLSPACE FALSE)
 
-  set(PROJECT_SPACE_DIR ${CATKIN_BUILD_PREFIX})
+  set(PROJECT_SPACE_DIR ${CATKIN_DEVEL_PREFIX})
   set(PKG_INCLUDE_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
 
   # absolute path to include dirs and validate that they are existing either absolute or relative to packages source
@@ -205,73 +311,100 @@ function(_catkin_package)
     elseif(IS_DIRECTORY ${PKG_INCLUDE_PREFIX}/${idir})
       set(include ${PKG_INCLUDE_PREFIX}/${idir})
     else()
-      message(FATAL_ERROR "catkin_package include dir '${idir}' is neither an absolute directory nor exists relative to '${CMAKE_CURRENT_SOURCE_DIR}'")
+      message(FATAL_ERROR "catkin_package() include dir '${idir}' is neither an absolute directory nor exists relative to '${CMAKE_CURRENT_SOURCE_DIR}'")
     endif()
     list(APPEND PROJECT_ABSOLUTE_INCLUDE_DIRS ${include})
   endforeach()
+  if(PROJECT_DEPENDENCIES_INCLUDE_DIRS)
+    list(APPEND PROJECT_ABSOLUTE_INCLUDE_DIRS ${PROJECT_DEPENDENCIES_INCLUDE_DIRS})
+  endif()
 
   # prepend library path of this workspace
   set(PKG_CONFIG_LIB_PATHS ${lib_paths})
   list(INSERT PKG_CONFIG_LIB_PATHS 0 ${PROJECT_SPACE_DIR}/lib)
   set(PKG_CMAKE_DIR ${PROJECT_SPACE_DIR}/share/${PROJECT_NAME}/cmake)
-
-  # ensure that output folder exists
-  file(MAKE_DIRECTORY ${CATKIN_BUILD_PREFIX}/lib/pkgconfig)
-  # generate buildspace pc for project
-  em_expand(${catkin_EXTRAS_DIR}/templates/pkg.context.pc.in
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/pkg.buildspace.context.pc.py
-    ${catkin_EXTRAS_DIR}/em/pkg.pc.em
-    ${CATKIN_BUILD_PREFIX}/lib/pkgconfig/${PROJECT_NAME}.pc)
-
-  # generate buildspace config for project
-  set(infile ${${PROJECT_NAME}_EXTRAS_DIR}/${PROJECT_NAME}Config.cmake.in)
-  if(NOT EXISTS ${infile})
-    set(infile ${catkin_EXTRAS_DIR}/templates/pkgConfig.cmake.in)
+  if("${PROJECT_NAME}" STREQUAL "catkin")
+    set(PKG_CMAKE_DIR "${catkin_EXTRAS_DIR}")
   endif()
-  configure_file(${infile}
-    ${CATKIN_BUILD_PREFIX}/share/${PROJECT_NAME}/cmake/${PROJECT_NAME}Config.cmake
-    @ONLY
-  )
 
-  # generate buildspace config-version for project
-  configure_file(${catkin_EXTRAS_DIR}/templates/pkgConfig-version.cmake.in
-    ${CATKIN_BUILD_PREFIX}/share/${PROJECT_NAME}/cmake/${PROJECT_NAME}Config-version.cmake
-    @ONLY
-  )
+  if(NOT PROJECT_SKIP_PKG_CONFIG_GENERATION)
+    # ensure that output folder exists
+    file(MAKE_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/pkgconfig)
+    # generate devel space pc for project
+    em_expand(${catkin_EXTRAS_DIR}/templates/pkg.context.pc.in
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/pkg.develspace.context.pc.py
+      ${catkin_EXTRAS_DIR}/em/pkg.pc.em
+      ${CATKIN_DEVEL_PREFIX}/lib/pkgconfig/${PROJECT_NAME}.pc)
+  endif()
 
-  # generate buildspace cfg-extras for project
-  foreach(extra ${PROJECT_CFG_EXTRAS})
-    assert_file_exists(${CMAKE_CURRENT_SOURCE_DIR}/cmake/${extra}.in "Nonexistent extra")
-    #configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/${extra}.in
-    configure_file(cmake/${extra}.in
-      ${CATKIN_BUILD_PREFIX}/share/${PROJECT_NAME}/cmake/${extra}
-      @ONLY
-    )
+  # generate devel space cfg-extras for project
+  set(PKG_CFG_EXTRAS "")
+  foreach(extra ${${PROJECT_NAME}_CFG_EXTRAS} ${PROJECT_CFG_EXTRAS})
+    if(IS_ABSOLUTE ${extra})
+      set(base ${extra})
+      get_filename_component(extra ${extra} NAME)
+    else()
+      set(base ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${extra})
+    endif()
+    if(EXISTS ${base}.em OR EXISTS ${base}.develspace.em)
+      if(EXISTS ${base}.develspace.em)
+        set(em_template ${base}.develspace.em)
+      else()
+        set(em_template ${base}.em)
+      endif()
+      em_expand(${catkin_EXTRAS_DIR}/templates/cfg-extras.context.py.in
+        ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/${extra}.develspace.context.cmake.py
+        ${em_template}
+        ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/cmake/${extra})
+      list(APPEND PKG_CFG_EXTRAS ${extra})
+    elseif(EXISTS ${base}.in OR EXISTS ${base}.develspace.in)
+      if(EXISTS ${base}.develspace.in)
+        set(in_template ${base}.develspace.in)
+      else()
+        set(in_template ${base}.in)
+      endif()
+      configure_file(${in_template}
+        ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/cmake/${extra}
+        @ONLY
+      )
+      list(APPEND PKG_CFG_EXTRAS ${extra})
+    elseif(EXISTS ${base})
+      list(APPEND PKG_CFG_EXTRAS ${base})
+    elseif(NOT EXISTS ${base}.installspace.em AND NOT EXISTS ${base}.installspace.in)
+      message(FATAL_ERROR "catkin_package() could not find CFG_EXTRAS file.  Either 'cmake/${extra}.develspace.em', 'cmake/${extra}.em', 'cmake/${extra}.develspace.in', 'cmake/${extra}.in', 'cmake/${extra}' or a variant specific to the installspace must exist.")
+    endif()
   endforeach()
 
-  set(CREATE_PLUGIN_XML_PATH ${catkin_EXTRAS_DIR}/create_plugin_xml.py)
-  execute_process(COMMAND ${CREATE_PLUGIN_XML_PATH} --depends ${CMAKE_CURRENT_SOURCE_DIR}
-    OUTPUT_VARIABLE EXTRA_PLUGIN_DEPENDS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  
-  execute_process(COMMAND ${CREATE_PLUGIN_XML_PATH} --exports ${CMAKE_CURRENT_SOURCE_DIR}
-    OUTPUT_VARIABLE EXTRA_PLUGIN_EXPORTS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  
-  if (EXTRA_PLUGIN_EXPORTS)
-    message(STATUS "Plugins for package ${PROJECT_NAME} detected.  Adding dependencies ${EXTRA_PLUGIN_DEPENDS} and exports ${EXTRA_PLUGIN_EXPORTS} into the manifest.")
-  endif(EXTRA_PLUGIN_EXPORTS)
-  # generate manifest.xml for project
-  configure_file(${catkin_EXTRAS_DIR}/templates/manifest.xml.in
-    ${CATKIN_BUILD_PREFIX}/share/${PROJECT_NAME}/manifest.xml
-    @ONLY
-  )
+  if(NOT PROJECT_SKIP_CMAKE_CONFIG_GENERATION)
+    set(PKG_EXPORTED_TARGETS ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_EXPORTED_TARGETS})
+    foreach(t ${PKG_EXPORTED_TARGETS})
+      if(NOT TARGET ${t})
+        message(FATAL_ERROR "catkin_package() could not find target '${t}' for code generation.")
+      endif()
+    endforeach()
+
+    # generate devel space config for project
+    set(infile ${${PROJECT_NAME}_EXTRAS_DIR}/${PROJECT_NAME}Config.cmake.in)
+    if(NOT EXISTS ${infile})
+      set(infile ${catkin_EXTRAS_DIR}/templates/pkgConfig.cmake.in)
+    endif()
+    configure_file(${infile}
+      ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/cmake/${PROJECT_NAME}Config.cmake
+      @ONLY
+    )
+    # generate devel space config-version for project
+    configure_file(${catkin_EXTRAS_DIR}/templates/pkgConfig-version.cmake.in
+      ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/cmake/${PROJECT_NAME}Config-version.cmake
+      @ONLY
+    )
+  endif()
 
   #
   # INSTALLSPACE
   #
 
-  set(BUILDSPACE FALSE)
+  # used in the cmake extra files
+  set(DEVELSPACE FALSE)
   set(INSTALLSPACE TRUE)
 
   set(PROJECT_SPACE_DIR ${CMAKE_INSTALL_PREFIX})
@@ -279,196 +412,107 @@ function(_catkin_package)
 
   # absolute path to include dir under install prefix if any include dir is set
   set(PROJECT_ABSOLUTE_INCLUDE_DIRS "")
-  if(NOT "X${PROJECT_INCLUDE_DIRS}" STREQUAL "X")
+  if(NOT "${PROJECT_INCLUDE_DIRS}" STREQUAL "")
     set(PROJECT_ABSOLUTE_INCLUDE_DIRS ${PKG_INCLUDE_PREFIX}/include)
+  endif()
+  if(PROJECT_DEPENDENCIES_INCLUDE_DIRS)
+    list(APPEND PROJECT_ABSOLUTE_INCLUDE_DIRS ${PROJECT_DEPENDENCIES_INCLUDE_DIRS})
   endif()
 
   # prepend library path of this workspace
   set(PKG_CONFIG_LIB_PATHS ${lib_paths})
   list(INSERT PKG_CONFIG_LIB_PATHS 0 ${PROJECT_SPACE_DIR}/lib)
-  set(PKG_CMAKE_DIR ${PROJECT_SPACE_DIR}/share/${PROJECT_NAME}/cmake)
+  # package cmake dir is the folder where the generated pkgConfig.cmake is located
+  set(PKG_CMAKE_DIR "\${${PROJECT_NAME}_DIR}")
 
-  # ensure that output folder exists
-  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace)
-  # generate and install pc for project
-  em_expand(${catkin_EXTRAS_DIR}/templates/pkg.context.pc.in
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/pkg.installspace.context.pc.py
-    ${catkin_EXTRAS_DIR}/em/pkg.pc.em
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}.pc)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}.pc
-    DESTINATION lib/pkgconfig
-  )
-
-  # generate config for project
-  set(infile ${${PROJECT_NAME}_EXTRAS_DIR}/${PROJECT_NAME}Config.cmake.in)
-  if(NOT EXISTS ${infile})
-    set(infile ${catkin_EXTRAS_DIR}/templates/pkgConfig.cmake.in)
-  endif()
-  configure_file(${infile}
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config.cmake
-    @ONLY
-  )
-
-  # generate config-version for project
-  set(infile ${${PROJECT_NAME}_EXTRAS_DIR}/${PROJECT_NAME}Config-version.cmake.in)
-  if(NOT EXISTS ${infile})
-    set(infile ${catkin_EXTRAS_DIR}/templates/pkgConfig-version.cmake.in)
-  endif()
-  configure_file(${infile}
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config-version.cmake
-    @ONLY
-  )
-
-  # generate cfg-extras for project
-  set(installable_cfg_extras "")
-  foreach(extra ${PROJECT_CFG_EXTRAS})
-    list(APPEND installable_cfg_extras ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${extra})
-    configure_file(cmake/${extra}.in
-      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${extra}
-      @ONLY
+  if(NOT PROJECT_SKIP_PKG_CONFIG_GENERATION)
+    # ensure that output folder exists
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace)
+    # generate and install pc for project
+    em_expand(${catkin_EXTRAS_DIR}/templates/pkg.context.pc.in
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/pkg.installspace.context.pc.py
+      ${catkin_EXTRAS_DIR}/em/pkg.pc.em
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}.pc)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}.pc
+      DESTINATION lib/pkgconfig
     )
-  endforeach()
+  endif()
 
-  # install config, config-version and cfg-extras for project
+  # generate and install cfg-extras for project
+  set(PKG_CFG_EXTRAS "")
+  set(installable_cfg_extras "")
+  foreach(extra ${${PROJECT_NAME}_CFG_EXTRAS} ${PROJECT_CFG_EXTRAS})
+    if(IS_ABSOLUTE ${extra})
+      set(base ${extra})
+      get_filename_component(extra ${extra} NAME)
+    else()
+      set(base ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${extra})
+    endif()
+    if(EXISTS ${base}.em OR EXISTS ${base}.installspace.em)
+      if(EXISTS ${base}.installspace.em)
+        set(em_template ${base}.installspace.em)
+      else()
+        set(em_template ${base}.em)
+      endif()
+      em_expand(${catkin_EXTRAS_DIR}/templates/cfg-extras.context.py.in
+        ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/${extra}.installspace.context.cmake.py
+        ${em_template}
+        ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${extra})
+      list(APPEND installable_cfg_extras ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${extra})
+      list(APPEND PKG_CFG_EXTRAS ${extra})
+    elseif(EXISTS ${base}.in OR EXISTS ${base}.installspace.in)
+      if(EXISTS ${base}.installspace.in)
+        set(in_template ${base}.installspace.in)
+      else()
+        set(in_template ${base}.in)
+      endif()
+      configure_file(${in_template}
+        ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${extra}
+        @ONLY
+      )
+      list(APPEND installable_cfg_extras ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${extra})
+      list(APPEND PKG_CFG_EXTRAS ${extra})
+    elseif(EXISTS ${base})
+      list(APPEND installable_cfg_extras ${base})
+      list(APPEND PKG_CFG_EXTRAS ${extra})
+    elseif(NOT EXISTS ${base}.develspace.em AND NOT EXISTS ${base}.develspace.in)
+      message(FATAL_ERROR "catkin_package() could not find CFG_EXTRAS file.  Either 'cmake/${extra}.installspace.em', 'cmake/${extra}.em', 'cmake/${extra}.installspace.in', 'cmake/${extra}.in', 'cmake/${extra}'or a variant specific to the develspace must exist.")
+    endif()
+  endforeach()
   install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config-version.cmake
     ${installable_cfg_extras}
     DESTINATION share/${PROJECT_NAME}/cmake
   )
 
-  # install package.xml (and manifest.xml for backward compatibility)
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/package.xml
-    ${CATKIN_BUILD_PREFIX}/share/${PROJECT_NAME}/manifest.xml
+  if(NOT PROJECT_SKIP_CMAKE_CONFIG_GENERATION)
+    # generate config for project
+    set(infile ${${PROJECT_NAME}_EXTRAS_DIR}/${PROJECT_NAME}Config.cmake.in)
+    if(NOT EXISTS ${infile})
+      set(infile ${catkin_EXTRAS_DIR}/templates/pkgConfig.cmake.in)
+    endif()
+    configure_file(${infile}
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config.cmake
+      @ONLY
+    )
+    # generate config-version for project
+    set(infile ${${PROJECT_NAME}_EXTRAS_DIR}/${PROJECT_NAME}Config-version.cmake.in)
+    if(NOT EXISTS ${infile})
+      set(infile ${catkin_EXTRAS_DIR}/templates/pkgConfig-version.cmake.in)
+    endif()
+    configure_file(${infile}
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config-version.cmake
+      @ONLY
+    )
+    # install config, config-version and cfg-extras for project
+    install(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/catkin_generated/installspace/${PROJECT_NAME}Config-version.cmake
+      DESTINATION share/${PROJECT_NAME}/cmake
+    )
+  endif()
+
+  # install package.xml
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/package.xml
     DESTINATION share/${PROJECT_NAME}
   )
-endfunction()
-
-
-# The following function is derived from CMake's cmake_parse_arguments function.
-# The support of repeated keywords has been added for catkin_package().
-# For each keyword a list variable is returned where each item contains all arguments separated by a whitespace.
-# The original license of the file is: 
-#=============================================================================
-# Copyright 2010 Alexander Neundorf <neundorf@kde.org>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# Full CMake Copyright notice
-#
-# Copyright 2000-2009 Kitware, Inc., Insight Software Consortium. All rights
-# reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# Redistributions of source code must retain the above copyright notice, this
-# list of conditions and the following disclaimer.
-#
-# Redistributions in binary form must reproduce the above copyright notice,
-# this list of conditions and the following disclaimer in the documentation
-# and/or other materials provided with the distribution.
-#
-# Neither the names of Kitware, Inc., the Insight Software Consortium, nor
-# the names of their contributors may be used to endorse or promote products
-# derived from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-
-function(_parse_arguments_with_repeated_keywords prefix _optionNames _singleArgNames _multiArgNames _repeatMultiArgNames)
-  # first set all result variables to empty/FALSE
-  foreach(arg_name ${_singleArgNames} ${_multiArgNames} ${_repeatSingleArgNames} ${_repeatMultiArgNames})
-    set(${prefix}_${arg_name})
-  endforeach(arg_name)
-
-  foreach(option ${_optionNames})
-    set(${prefix}_${option} FALSE)
-  endforeach(option)
-
-  set(${prefix}_UNPARSED_ARGUMENTS)
-
-  set(insideValues FALSE)
-  set(currentArgName)
-
-  # now iterate over all arguments and fill the result variables
-  foreach(currentArg ${ARGN})
-    list(FIND _optionNames "${currentArg}" optionIndex)  # ... then this marks the end of the arguments belonging to this keyword
-    list(FIND _singleArgNames "${currentArg}" singleArgIndex)  # ... then this marks the end of the arguments belonging to this keyword
-    list(FIND _multiArgNames "${currentArg}" multiArgIndex)  # ... then this marks the end of the arguments belonging to this keyword
-    list(FIND _repeatMultiArgNames "${currentArg}" repeatMultiArgIndex)  # ... then this marks the end of the arguments belonging to this keyword
-
-    if(${optionIndex} EQUAL -1  AND  ${singleArgIndex} EQUAL -1  AND  ${multiArgIndex} EQUAL -1  AND  ${repeatMultiArgIndex} EQUAL -1)
-      if(insideValues)
-        if("${insideValues}" STREQUAL "SINGLE")
-          set(${prefix}_${currentArgName} ${currentArg})
-          set(insideValues FALSE)
-        elseif("${insideValues}" STREQUAL "MULTI")
-          list(APPEND ${prefix}_${currentArgName} ${currentArg})
-        elseif("${insideValues}" STREQUAL "REPEAT")
-          # get and pop last element from list
-          list(REVERSE ${prefix}_${currentArgName})
-          list(GET ${prefix}_${currentArgName} 0 _items)
-          list(REMOVE_AT ${prefix}_${currentArgName} 0)
-          list(REVERSE ${prefix}_${currentArgName})
-          # append value to element
-          set(_items "${_items} ${currentArg}")
-          # append element as string to list
-          list(APPEND ${prefix}_${currentArgName} "${_items}")
-        endif()
-      else(insideValues)
-        list(APPEND ${prefix}_UNPARSED_ARGUMENTS ${currentArg})
-      endif(insideValues)
-    else()
-      if(NOT ${optionIndex} EQUAL -1)
-        set(${prefix}_${currentArg} TRUE)
-        set(insideValues FALSE)
-      elseif(NOT ${singleArgIndex} EQUAL -1)
-        set(currentArgName ${currentArg})
-        set(${prefix}_${currentArgName})
-        set(insideValues "SINGLE")
-      elseif(NOT ${multiArgIndex} EQUAL -1)
-        set(currentArgName ${currentArg})
-        set(${prefix}_${currentArgName})
-        set(insideValues "MULTI")
-      elseif(NOT ${repeatMultiArgIndex} EQUAL -1)
-        set(currentArgName ${currentArg})
-        # use space since empty items are not supported
-        list(APPEND ${prefix}_${currentArgName} " ")
-        set(insideValues "REPEAT")
-      endif()
-    endif()
-
-  endforeach(currentArg)
-
-  # propagate the result variables to the caller:
-  foreach(arg_name ${_singleArgNames} ${_multiArgNames} ${_optionNames})
-    set(${prefix}_${arg_name}  ${${prefix}_${arg_name}} PARENT_SCOPE)
-  endforeach(arg_name)
-  # strip spaces from the items of all repeated arguments
-  foreach(arg_name ${_repeatMultiArgNames})
-    set(stripped "")
-    foreach(items ${${prefix}_${arg_name}})
-      string(STRIP "${items}" items)
-      list(APPEND stripped "${items}")
-    endforeach()
-    set(${prefix}_${arg_name}  ${stripped} PARENT_SCOPE)
-  endforeach(arg_name)
-  set(${prefix}_UNPARSED_ARGUMENTS ${${prefix}_UNPARSED_ARGUMENTS} PARENT_SCOPE)
-
 endfunction()

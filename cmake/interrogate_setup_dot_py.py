@@ -1,8 +1,46 @@
 #!/usr/bin/env python
 
+# Software License Agreement (BSD License)
+#
+# Copyright (c) 2012, Willow Garage, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above
+#    copyright notice, this list of conditions and the following
+#    disclaimer in the documentation and/or other materials provided
+#    with the distribution.
+#  * Neither the name of Willow Garage, Inc. nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 from __future__ import print_function
 import os
 import sys
+
+import distutils.core
+try:
+    import setuptools
+except ImportError:
+    pass
 
 from argparse import ArgumentParser
 
@@ -94,38 +132,54 @@ def generate_cmake_file(package_name, version, scripts, package_dir, pkgs):
     return result
 
 
-class Dummy:
-    '''
-    Used as a replacement for modules setuptools and distutils.core,
-    defines a setup function.
-    '''
+def _create_mock_setup_function(package_name, outfile):
+    """
+    Creates a function to call instead of distutils.core.setup or
+    setuptools.setup, which just captures some args and writes them
+    into a file that can be used from cmake
 
-    def __init__(self, package_name, outfile):
-        self.package_name = package_name
-        self.outfile = outfile
+    :param package_name: name of the package
+    :param outfile: filename that cmake will use afterwards
+    :returns: a function to replace disutils.core.setup and setuptools.setup
+    """
 
-    def setup(self, *args, **kwargs):
+    def setup(*args, **kwargs):
         '''
         Checks kwargs and writes a scriptfile
         '''
         if 'version' not in kwargs:
-            sys.stderr.write("\n*** Unable to find 'version' in setup.py of %s" % self.package_name)
+            sys.stderr.write("\n*** Unable to find 'version' in setup.py of %s\n" % package_name)
             raise RuntimeError("version not found in setup.py")
         version = kwargs['version']
-        if 'package_dir' not in kwargs:
-            raise RuntimeError(r'package_dir not in setup.py')
-        package_dir = kwargs['package_dir']
+        package_dir = kwargs.get('package_dir', {})
 
         pkgs = kwargs.get('packages', [])
         scripts = kwargs.get('scripts', [])
 
-        result = generate_cmake_file(package_name=self.package_name,
+        unsupported_args = [
+            'entry_points',
+            'exclude_package_data',
+            'ext_modules ',
+            'ext_package',
+            'include_package_data',
+            'namespace_packages',
+            'py_modules',
+            'setup_requires',
+            'use_2to3',
+            'zip_safe']
+        used_unsupported_args = [arg for arg in unsupported_args if arg in kwargs]
+        if used_unsupported_args:
+            sys.stderr.write("*** Arguments %s to setup() not supported in catkin devel space in setup.py of %s\n" % (used_unsupported_args, package_name))
+
+        result = generate_cmake_file(package_name=package_name,
                                      version=version,
                                      scripts=scripts,
                                      package_dir=package_dir,
                                      pkgs=pkgs)
-        with open(self.outfile, 'w') as out:
+        with open(outfile, 'w') as out:
             out.write('\n'.join(result))
+
+    return setup
 
 
 def main():
@@ -145,15 +199,6 @@ def main():
     # print("Interrogating setup.py for package %s into %s " % (PACKAGE_NAME, OUTFILE),
     #      file=sys.stderr)
 
-    dummy = Dummy(package_name=args.package_name,
-                  outfile=args.outfile)
-
-    sys.modules['setuptools'] = dummy
-    sys.modules['distutils.core'] = dummy
-
-    # find the imports in setup.py relatively to make it work before installing catkin
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-
     # print("executing %s" % args.setupfile_path)
 
     # be sure you're in the directory containing
@@ -161,9 +206,28 @@ def main():
     # so the import of __version__ works
     os.chdir(os.path.dirname(os.path.abspath(args.setupfile_path)))
 
-    with open(args.setupfile_path, 'r') as fh:
-        exec(fh.read())
+    # patch setup() function of distutils and setuptools for the
+    # context of evaluating setup.py
+    try:
+        fake_setup = _create_mock_setup_function(package_name=args.package_name,
+                                                outfile=args.outfile)
 
+        distutils_backup = distutils.core.setup
+        distutils.core.setup = fake_setup
+        try:
+            setuptools_backup = setuptools.setup
+            setuptools.setup = fake_setup
+        except NameError:
+            pass
+
+        with open(args.setupfile_path, 'r') as fh:
+            exec(fh.read())
+    finally:
+        distutils.core.setup = distutils_backup
+        try:
+            setuptools.setup = setuptools_backup
+        except NameError:
+            pass
 
 if __name__ == '__main__':
     main()

@@ -5,10 +5,13 @@ import argparse
 import os
 import sys
 
+# find the import relatively if available to work before installing catkin or overlaying installed version
+if os.path.exists(os.path.join(os.path.dirname(__file__), 'CMakeLists.txt')):
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
 try:
     from catkin_pkg.topological_order import topological_order
-except ImportError as impe:
-    sys.exit("ERROR Cannot find a module of catkin_pkg, make sure it is up to date and on the PYTHONPATH, see catkin install instructions: %s" % impe)
+except ImportError as e:
+    sys.exit('ImportError: "from catkin_pkg.topological_order import topological_order" failed: %s\nMake sure that you have installed "catkin_pkg", it is up to date and on the PYTHONPATH.' % e)
 
 
 def main():
@@ -41,3 +44,6 @@ def main():
             print('%s' % package.name)
         else:
             print('%s %s' % (package.name, path))
+
+if __name__ == '__main__':
+    main()
