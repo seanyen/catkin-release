@@ -37,11 +37,9 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
     string(REPLACE ":" ";" CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})
   endif()
 endif()
-if(CMAKE_PREFIX_PATH)
-  # skip devel space if it is in CMAKE_PREFIX_PATH so that it is not part of CATKIN_WORKSPACES
-  list(REMOVE_ITEM CMAKE_PREFIX_PATH ${CATKIN_DEVEL_PREFIX})
-  message(STATUS "Using CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
-endif()
+message(STATUS "Using CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+# store original CMAKE_PREFIX_PATH
+set(CMAKE_PREFIX_PATH_AS_IS ${CMAKE_PREFIX_PATH})
 
 # list of unique catkin workspaces based on CMAKE_PREFIX_PATH
 set(CATKIN_WORKSPACES "")
@@ -57,11 +55,11 @@ if(CATKIN_WORKSPACES)
   message(STATUS "This workspace overlays: ${CATKIN_WORKSPACES}")
 endif()
 
-# save original CMAKE_PREFIX_PATH for environment generation
-set(CMAKE_PREFIX_PATH_WITHOUT_DEVEL_SPACE ${CMAKE_PREFIX_PATH})
-
 # prepend devel space to CMAKE_PREFIX_PATH
-list(INSERT CMAKE_PREFIX_PATH 0 ${CATKIN_DEVEL_PREFIX})
+list(FIND CMAKE_PREFIX_PATH ${CATKIN_DEVEL_PREFIX} _index)
+if(_index EQUAL -1)
+  list(INSERT CMAKE_PREFIX_PATH 0 ${CATKIN_DEVEL_PREFIX})
+endif()
 
 
 # enable all new policies (if available)
@@ -104,6 +102,7 @@ foreach(filename
     catkin_add_env_hooks
     catkin_destinations
     catkin_generate_environment
+    catkin_metapackage
     catkin_package
     catkin_package_xml
     catkin_workspace
@@ -179,7 +178,7 @@ configure_file(${catkin_EXTRAS_DIR}/templates/env.${script_ext}.in
 set(CATKIN_ENV ${SETUP_DIR}/env_cached.${script_ext} CACHE INTERNAL "catkin environment")
 
 # add additional environment hooks
-if(CATKIN_BUILD_BINARY_PACKAGE AND NOT "${PROJECT_NAME}" STREQUAL "catkin")
+if(CATKIN_BUILD_BINARY_PACKAGE)
   set(catkin_skip_install_env_hooks "SKIP_INSTALL")
 endif()
 if(CMAKE_HOST_UNIX)
