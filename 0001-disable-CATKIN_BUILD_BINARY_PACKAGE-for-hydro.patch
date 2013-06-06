@@ -1,4 +1,4 @@
-From fefe3ae09f3d4d28face2367c30aadda18650af9 Mon Sep 17 00:00:00 2001
+From b38cd26f6b5c0ebcb94c534b504dd4ad370320c1 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Thu, 21 Mar 2013 18:47:13 -0700
 Subject: [PATCH 1/2] disable CATKIN_BUILD_BINARY_PACKAGE for hydro
