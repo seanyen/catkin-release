@@ -1,3 +1,5 @@
+# the CMake variable PYTHON_INSTALL_DIR has the same value as the Python function catkin.builder.get_python_install_dir()
+
 find_package(PythonInterp REQUIRED)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} ${catkin_EXTRAS_DIR}/python_version.py
   OUTPUT_VARIABLE PYTHON_VERSION_XDOTY
@@ -5,14 +7,12 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} ${catkin_EXTRAS_DIR}/python_version
 
 set(PYTHON_VERSION_XDOTY ${PYTHON_VERSION_XDOTY} CACHE STRING "Python version")
 
-#This should be resolved automatically one day...
-option(SETUPTOOLS_DEB_LAYOUT "ON for debian style python packages layout" ON)
-
-if(APPLE OR WIN32)
-  set(SETUPTOOLS_DEB_LAYOUT OFF)
+set(python_use_debian_layout FALSE)
+if(EXISTS "/etc/debian_version")
+  set(python_use_debian_layout TRUE)
 endif()
 
-if(SETUPTOOLS_DEB_LAYOUT)
+if(python_use_debian_layout)
   set(PYTHON_PACKAGES_DIR dist-packages)
   set(SETUPTOOLS_ARG_EXTRA "--install-layout=deb")
 else()
@@ -26,7 +26,6 @@ if(NOT WIN32)
     CACHE INTERNAL "This needs to be in PYTHONPATH when 'setup.py install' is called.  And it needs to match.  But setuptools won't tell us where it will install things.")
 else()
   # Windows setuptools installs to lib/site-packages not lib/python2.7/site-packages 
-  # Or is this SETUPTOOLS_DEB_LAYOUT dependent?
   set(PYTHON_INSTALL_DIR lib/${PYTHON_PACKAGES_DIR}
     CACHE INTERNAL "This needs to be in PYTHONPATH when 'setup.py install' is called.  And it needs to match.  But setuptools won't tell us where it will install things.")
 endif()
