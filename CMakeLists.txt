@@ -10,6 +10,10 @@ endif()
 
 catkin_package()
 
+install(FILES LICENSE
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
 # for convenience we provide eigen-config(-version).cmake files
 file(COPY cmake/Modules/eigen-config.cmake cmake/Modules/eigen-config-version.cmake
   DESTINATION ${CATKIN_DEVEL_PREFIX}/share/eigen/cmake
@@ -23,11 +27,12 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/bin)
 
 # install cmake files for catkin (except some files only used at build time of catkin)
 install(DIRECTORY cmake
-  DESTINATION share/catkin
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   USE_SOURCE_PERMISSIONS
   PATTERN "catkinConfig.cmake.in" EXCLUDE
   PATTERN "Modules" EXCLUDE)
 
 catkin_python_setup()
 
-#catkin_add_nosetests(test)
+catkin_add_nosetests(test/local_tests)
+catkin_add_nosetests(test/unit_tests)

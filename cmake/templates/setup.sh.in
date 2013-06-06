@@ -14,8 +14,7 @@ if [ ! -f "$_SETUP_UTIL" ]; then
 fi
 
 # detect if running on Darwin platform
-_UNAME=`which uname`
-_UNAME=`$_UNAME`
+_UNAME=`uname -s`
 _IS_DARWIN=0
 if [ "$_UNAME" = "Darwin" ]; then
   _IS_DARWIN=1
@@ -39,23 +38,39 @@ if [ -z "$CATKIN_SHELL" ]; then
 fi
 
 # invoke Python script to generate necessary exports of environment variables
-_MKTEMP=`which mktemp`
-_SETUP_TMP=`$_MKTEMP /tmp/setup.sh.XXXXXXXXXX`
+_SETUP_TMP=`mktemp /tmp/setup.sh.XXXXXXXXXX`
 if [ $? -ne 0 -o ! -f "$_SETUP_TMP" ]; then
   echo "Could not create temporary file: $_SETUP_TMP"
   return 1
 fi
 CATKIN_SHELL=$CATKIN_SHELL "$_SETUP_UTIL" $@ > $_SETUP_TMP
 . $_SETUP_TMP
-_RM=`which rm`
-$_RM $_SETUP_TMP
+rm -f $_SETUP_TMP
+
+# save value of IFS, including if it was unset
+# the "+x" syntax helps differentiate unset from empty
+_IFS=$IFS
+if [ -z ${IFS+x} ]; then
+  _IFS_WAS_UNSET=1
+fi
 
 # source all environment hooks
-_IFS=$IFS
 IFS=":"
 for _envfile in $_CATKIN_ENVIRONMENT_HOOKS; do
+  # restore value of IFS, including if it was unset
   IFS=$_IFS
+  if [ $_IFS_WAS_UNSET ]; then
+    unset IFS
+  fi
   . "$_envfile"
 done
+
+# restore value of IFS, including if it was unset
 IFS=$_IFS
+if [ $_IFS_WAS_UNSET ]; then
+  unset IFS
+  unset _IFS_WAS_UNSET
+fi
+unset _IFS
+
 unset _CATKIN_ENVIRONMENT_HOOKS

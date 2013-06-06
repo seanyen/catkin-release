@@ -44,15 +44,14 @@ would look like this::
   /stick/pickage/... (pickage files)
   /stick/peckage/... (peckage files)
 
-The new version adds a new "stick" metapackage subdirectory under /stick, along with a package.xml file::
+The new version adds a new "stick" metapackage subdirectory under /stick, along with a package.xml and CMakeLists.txt file::
 
   /stick/stick/package.xml
+  /stick/stick/CMakeLists.xml
   /stick/pickage/... (pickage files)
   /stick/peckage/... (peckage files)
 
-.. note:: Metapackages do not have a CMakeLists.txt file.
-
-The contents of the /stick/stick/package.xml looks like this::
+The contents of the /stick/stick/package.xml must look like this::
 
   <package>
     <name>stick</name>
@@ -63,9 +62,9 @@ The contents of the /stick/stick/package.xml looks like this::
 
     <url type="website">http://www.example.com/stick</url>
 
-    <build_depend>pickage</build_depend>
+    <buildtool_depend>catkin</buildtool_depend>
 
-    <!-- a former stack depends only on all its child packages -->
+    <!-- a former stack run depends only on all its child packages -->
     <run_depend>pickage</run_depend>
     <run_depend>peckage</run_depend>
 
@@ -73,6 +72,18 @@ The contents of the /stick/stick/package.xml looks like this::
       <metapackage/>
     </export>
   </package>
+
+The contents of the /stick/stick/CMakeLists.txt looks like this::
+
+  cmake_minimum_required(VERSION 2.8.3)
+  project(stick)
+  find_package(catkin REQUIRED)
+  catkin_metapackage()
+
+Note that the package.xml for stick has a buildtool depend on catkin. This is required
+because the CMakeLists.txt for a metapackage contains a catkin macro (catkin_metapackage),
+therefore catkin is required at build time. This is the only non-run_depend allowed in the
+package.xml of a metapackage.
 
 The rest of these instructions refer to changes within regular (not meta-) catkin packages.
 
