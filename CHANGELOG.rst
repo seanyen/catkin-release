@@ -2,6 +2,13 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.67 (2013-06-18)
+-------------------
+* fix --build and --directory auto completion for catkin_make(_isolated) (`#325 <https://github.com/ros/catkin/issues/325>`_)
+* fix catkin_make(_isolated) auto completion on older versions of bash on OS X (`#325 <https://github.com/ros/catkin/issues/325>`_)
+* add how-to documentation
+* for a complete list of changes see the `commit log <https://github.com/ros/catkin/compare/0.5.66...0.5.67>`_
+
 0.5.66 (2013-06-06)
 -------------------
 * add new CMake function catkin_download_test_data, mark download_test_data as deprecated (`#426 <https://github.com/ros/catkin/issues/426>`_, `#431 <https://github.com/ros/catkin/issues/431>`_)
@@ -16,6 +23,7 @@ Changelog for package catkin
   * add --catkin-make-args which enables calling 'catkin_make_isolated run_tests' (`#414 <https://github.com/ros/catkin/issues/414>`_)
 
 * catkin_prepare_release:
+
   * execute the commands rather than printing them (`#417 <https://github.com/ros/catkin/issues/417>`_)
   * warn about missing changelog files
   * validate metapackages (`#404 <https://github.com/ros/catkin/issues/404>`_)
