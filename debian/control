@@ -1,0 +1,12 @@
+Source: ros-hydro-catkin
+Section: misc
+Priority: extra
+Maintainer: "Dirk Thomas <dthomas@osrfoundation.org>"
+Build-Depends: debhelper (>= 7.0.50~), cmake, libgtest-dev, python-catkin-pkg, python-empy, python-nose
+Homepage: http://www.ros.org/wiki/catkin
+Standards-Version: 3.9.2
+
+Package: ros-hydro-catkin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, cmake, libgtest-dev, python-catkin-pkg (>= 0.1.12), python-empy, python-nose
+Description: Low-level build system macros and infrastructure for ROS.
