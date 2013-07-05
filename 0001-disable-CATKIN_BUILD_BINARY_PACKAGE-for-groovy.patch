@@ -1,4 +1,4 @@
-From b2dba97e3693a64fe2a4a77dba8976d02e82d5ad Mon Sep 17 00:00:00 2001
+From 3c148578f930b00626ed3d94579a75cc0c9ac096 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Thu, 21 Mar 2013 18:46:48 -0700
 Subject: [PATCH 1/2] disable CATKIN_BUILD_BINARY_PACKAGE for groovy
