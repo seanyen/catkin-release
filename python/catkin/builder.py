@@ -36,6 +36,7 @@ import copy
 import io
 import multiprocessing
 import os
+import platform
 import re
 import stat
 import subprocess
@@ -180,7 +181,7 @@ def run_command(cmd, cwd, quiet=False, colorize=False):
     out = io.StringIO() if quiet else sys.stdout
     if capture:
         while True:
-            line = unicode(proc.stdout.readline())
+            line = unicode(proc.stdout.readline().decode('utf8', 'replace'))
             if proc.returncode is not None or not line:
                 break
             try:
@@ -487,6 +488,9 @@ def build_package(
     install, force_cmake, quiet, last_env, cmake_args, make_args, catkin_make_args,
     number=None, of=None
 ):
+    if platform.system() in ['Linux', 'Darwin']:
+        status_msg = '{package_name} [{number} of {total}]'.format(package_name=package.name, number=number, total=of)
+        sys.stdout.write("\x1b]2;" + status_msg + "\x07")
     cprint('@!@{gf}==>@| ', end='')
     new_last_env = get_new_env(package, develspace, installspace, install, last_env)
     build_type = _get_build_type(package)
