@@ -15,7 +15,7 @@ from catkin_pkg.packages import find_packages, verify_equal_package_versions
 # find the import relatively if available to work before installing catkin or overlaying installed version
 if os.path.exists(os.path.join(os.path.dirname(__file__), 'CMakeLists.txt')):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
-from catkin.package_version import update_versions
+from catkin.package_version import get_forthcoming_label, update_versions, update_changelog_sections
 from catkin.terminal_color import disable_ANSI_colors, fmt
 from catkin.workspace_vcs import get_repository_type, vcs_remotes
 
@@ -96,10 +96,10 @@ def check_clean_working_copy(base_path, vcs_type):
     return True
 
 
-def commit_package_xml_files(base_path, vcs_type, packages, message, dry_run=False):
-    package_xmls = [os.path.join(p, PACKAGE_MANIFEST_FILENAME) for p in packages.keys()]
+def commit_files(base_path, vcs_type, packages, packages_with_changelogs, message, dry_run=False):
     cmd = [_find_executable(vcs_type), 'commit', '-m', message]
-    cmd += package_xmls
+    cmd += [os.path.join(p, PACKAGE_MANIFEST_FILENAME) for p in packages.keys()]
+    cmd += [path for path, _, _ in packages_with_changelogs.values()]
     if not dry_run:
         try:
             subprocess.check_call(cmd, cwd=base_path)
@@ -108,9 +108,9 @@ def commit_package_xml_files(base_path, vcs_type, packages, message, dry_run=Fal
     return None
 
 
-def tag_repository(base_path, vcs_type, new_version, dry_run=False):
+def tag_repository(base_path, vcs_type, tag_name, dry_run=False):
     if vcs_type in ['bzr', 'git', 'hg']:
-        cmd = [_find_executable(vcs_type), 'tag', new_version]
+        cmd = [_find_executable(vcs_type), 'tag', tag_name]
     elif vcs_type == 'svn':
         TRUNK = '/trunk'
         BRANCHES = '/branches'
@@ -124,8 +124,8 @@ def tag_repository(base_path, vcs_type, new_version, dry_run=False):
             base_url = os.path.dirname(svn_url)[:-len(TAGS)]
         else:
             raise RuntimeError(fmt("@{rf}Could not determine base URL of SVN repository '%s'" % svn_url))
-        tag_url = '%s/tags/%s' % (base_url, new_version)
-        cmd = ['svn', 'cp', '-m', '"tagging %s"' % new_version, svn_url, tag_url]
+        tag_url = '%s/tags/%s' % (base_url, tag_name)
+        cmd = ['svn', 'cp', '-m', '"tagging %s"' % tag_name, svn_url, tag_url]
     else:
         assert False, 'Unknown vcs type: %s' % vcs_type
     if not dry_run:
@@ -176,6 +176,8 @@ def main():
         description='Runs the commands to bump the version number, commit the modified %s files and create a tag in the repository.' % PACKAGE_MANIFEST_FILENAME)
     parser.add_argument('--bump', choices=('major', 'minor', 'patch'), default='patch', help='Which part of the version number to bump? (default: %(default)s)')
     parser.add_argument('--no-color', action='store_true', default=False, help='Disables colored output')
+    parser.add_argument('-t', '--tag-prefix', default='', 
+                        help='Add this prefix to the created release tag')
     parser.add_argument('-y', '--non-interactive', action='store_true', default=False,
         help="Run without user interaction, confirming all questions with 'yes'")
     args = parser.parse_args()
@@ -206,11 +208,20 @@ def main():
         raise RuntimeError(fmt('@{rf}No packages found'))
     print('Found packages: %s' % ', '.join([fmt('@{bf}@{boldon}%s@{boldoff}@{reset}' % p.name) for p in packages.values()]))
 
+    # complain about packages with non-catkin build_type as they might require additional steps before being released
     # complain about packages with upper case character since they won't be releasable with bloom
+    non_catkin_pkg_names = []
     invalid_pkg_names = []
     for package in packages.values():
+        build_type = ([e.content for e in package.exports if e.tagname == 'build_type'][0]) if 'build_type' in [e.tagname for e in package.exports] else 'catkin'
+        if build_type != 'catkin':
+            non_catkin_pkg_names.append(package.name)
         if package.name != package.name.lower():
             invalid_pkg_names.append(package.name)
+    if non_catkin_pkg_names:
+        print(fmt("@{yf}Warning: the following package are not of build_type catkin and may require manual steps to release': %s" % ', '.join([('@{boldon}%s@{boldoff}' % p) for p in sorted(non_catkin_pkg_names)])), file=sys.stderr)
+        if not args.non_interactive and not prompt_continue('Continue anyway', default=False):
+            raise RuntimeError(fmt("@{rf}Aborted release, verify that non-catkin packages are ready to be released or release manually."))
     if invalid_pkg_names:
         print(fmt("@{yf}Warning: the following package names contain upper case characters which violate both ROS and Debian naming conventions': %s" % ', '.join([('@{boldon}%s@{boldoff}' % p) for p in sorted(invalid_pkg_names)])), file=sys.stderr)
         if not args.non_interactive and not prompt_continue('Continue anyway', default=False):
@@ -232,12 +243,14 @@ def main():
     # fetch current version and verify that all packages have same version number
     old_version = verify_equal_package_versions(packages.values())
     new_version = bump_version(old_version, args.bump)
+    tag_name = args.tag_prefix + new_version
 
     if not args.non_interactive and not prompt_continue(fmt("Prepare release of version '@{bf}@{boldon}%s@{boldoff}@{reset}'" % new_version), default=True):
         raise RuntimeError(fmt("@{rf}Aborted release, use option '--bump' to release a different version."))
 
     # check for changelog entries
     missing_changelogs = []
+    missing_changelogs_but_forthcoming = {}
     for pkg_path, package in packages.iteritems():
         changelog_path = os.path.join(pkg_path, CHANGELOG_FILENAME)
         if not os.path.exists(changelog_path):
@@ -250,7 +263,12 @@ def main():
         try:
             changelog.get_content_of_version(new_version)
         except KeyError:
-            missing_changelogs.append(package.name)
+            # check that forthcoming section exists
+            forthcoming_label = get_forthcoming_label(changelog.rst)
+            if forthcoming_label:
+                missing_changelogs_but_forthcoming[package.name] = (changelog_path, changelog, forthcoming_label)
+            else:
+                missing_changelogs.append(package.name)
 
     if local_modifications:
         raise RuntimeError(fmt('@{rf}The following files have modifications, please commit/revert them before:' + ''.join([('\n- @{boldon}%s@{boldoff}' % path) for path in local_modifications])))
@@ -258,7 +276,7 @@ def main():
     if missing_changelogs:
         print(fmt("@{yf}Warning: the following packages do not have a changelog file or entry for version '@{boldon}%s@{boldoff}': %s" % (new_version, ', '.join([('@{boldon}%s@{boldoff}' % p) for p in sorted(missing_changelogs)]))), file=sys.stderr)
         if not args.non_interactive and not prompt_continue('Continue without changelogs', default=False):
-            raise RuntimeError(fmt("@{rf}Aborted release, populate the changelog with '@{boldon}catkin_generate_changelog@{boldoff}' and/or '@{boldon}catkin_tag_changelog@{boldoff}' (or manually)."))
+            raise RuntimeError(fmt("@{rf}Aborted release, populate the changelog with '@{boldon}catkin_generate_changelog@{boldoff}' and review / clean up the content."))
 
     # verify that repository is pushable (if the vcs supports dry run of push)
     try_repo_push(base_path, vcs_type)
@@ -271,6 +289,10 @@ def main():
         if not args.non_interactive and not prompt_continue('Continue anyway', default=False):
             raise RuntimeError(fmt("@{rf}Aborted release, clean the working copy before trying again."))
 
+    # tag forthcoming changelog sections
+    update_changelog_sections(missing_changelogs_but_forthcoming, new_version)
+    print(fmt("@{gf}Rename the forthcoming section@{reset} of the following packages to version '@{bf}@{boldon}%s@{boldoff}@{reset}': %s" % (new_version, ', '.join([('@{boldon}%s@{boldoff}' % p) for p in sorted(missing_changelogs_but_forthcoming.keys())]))))
+
     # bump version number
     update_versions(packages.keys(), new_version)
     print(fmt("@{gf}Bump version@{reset} of all packages from '@{bf}%s@{reset}' to '@{bf}@{boldon}%s@{boldoff}@{reset}'" % (old_version, new_version)))
@@ -278,23 +300,23 @@ def main():
     if vcs_type in ['svn']:
         # for svn everything affects the remote repository immediately
         commands = []
-        commands.append(commit_package_xml_files(base_path, vcs_type, packages, new_version, dry_run=True))
-        commands.append(tag_repository(base_path, vcs_type, new_version, dry_run=True))
+        commands.append(commit_files(base_path, vcs_type, packages, missing_changelogs_but_forthcoming, new_version, dry_run=True))
+        commands.append(tag_repository(base_path, vcs_type, tag_name, dry_run=True))
         print(fmt('@{gf}The following commands will be executed to commit the changes and tag the new version:'))
         for cmd in commands:
             print(fmt('  @{bf}@{boldon}%s@{boldoff}' % ' '.join(cmd)))
         if not args.non_interactive and not prompt_continue('Perform commands which will modify the repository', default=True):
             raise RuntimeError(fmt('@{rf}Skipping commands, to finish the release execute the commands manually.'))
-        commit_package_xml_files(base_path, vcs_type, packages, new_version)
-        tag_repository(base_path, vcs_type, new_version)
+        commit_files(base_path, vcs_type, packages, missing_changelogs_but_forthcoming, new_version)
+        tag_repository(base_path, vcs_type, tag_name)
 
     else:
         # for other vcs types the changes are first done locally
         print(fmt('@{gf}Committing the package.xml files...'))
-        commit_package_xml_files(base_path, vcs_type, packages, new_version)
+        commit_files(base_path, vcs_type, packages, missing_changelogs_but_forthcoming, new_version)
 
-        print(fmt("@{gf}Creating tag '@{boldon}%s@{boldoff}'..." % new_version))
-        tag_repository(base_path, vcs_type, new_version)
+        print(fmt("@{gf}Creating tag '@{boldon}%s@{boldoff}'..." % (tag_name)))
+        tag_repository(base_path, vcs_type, tag_name)
 
         # confirm commands to push to remote repository
         commands = push_changes(base_path, vcs_type, dry_run=True)
