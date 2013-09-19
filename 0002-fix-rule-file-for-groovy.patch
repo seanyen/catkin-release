@@ -1,4 +1,4 @@
-From 260bb686a7062a5f96d61458e949b98518260b12 Mon Sep 17 00:00:00 2001
+From 7c13e81e4626802ad6c472c4b8a2b5b698f744ba Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Fri, 22 Mar 2013 14:08:41 -0700
 Subject: [PATCH 2/2] fix rule file for groovy
@@ -8,7 +8,7 @@ Subject: [PATCH 2/2] fix rule file for groovy
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules.em b/debian/rules.em
-index 8de67c5..fc9408b 100644
+index 8de67c5..fc9408b 100755
 --- a/debian/rules.em
 +++ b/debian/rules.em
 @@ -25,9 +25,9 @@ override_dh_auto_configure:
