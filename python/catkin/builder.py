@@ -295,7 +295,11 @@ def build_catkin_package(
     )
 
     # Make the build dir
-    build_dir = _check_build_dir(package.name, workspace, buildspace)
+    if install:
+        build_dir_name = '%s_install' % package.name
+    else:
+        build_dir_name = '%s_devel' % package.name
+    build_dir = _check_build_dir(build_dir_name, workspace, buildspace)
 
     # Check last_env
     if last_env is not None:
@@ -440,7 +444,10 @@ def build_cmake_package(
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
-    run_command(make_cmd, build_dir, quiet)
+    if install:
+        run_command(make_cmd, build_dir, quiet)
+    else:
+        run_command(make_cmd, build_dir, quiet, add_env={'DESTDIR': ''})
 
     # Make install
     make_install_cmd = ['make', 'install']
@@ -456,20 +463,35 @@ def build_cmake_package(
     # Generate env.sh for chaining to catkin packages
     # except if using --merge which implies that new_env_path equals last_env
     new_env_path = os.path.join(install_target, 'env.sh')
-    new_env_path = prefix_destdir(new_env_path, destdir)
+    if install:
+        new_env_path = prefix_destdir(new_env_path, destdir)
     if new_env_path != last_env:
         variables = {
             'SETUP_DIR': install_target,
             'SETUP_FILENAME': 'setup'
         }
         with open(os.path.join(new_env_path), 'w') as f:
-            f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'env.sh.in'), variables))
+            f.write("""\
+#!/usr/bin/env sh
+# generated from catkin.builder module
+
+if [ $# -eq 0 ] ; then
+  /bin/echo "Usage: env.sh COMMANDS"
+  /bin/echo "Calling env.sh without arguments is not supported anymore. Instead spawn a subshell and source a setup file manually."
+  exit 1
+fi
+
+# source {SETUP_FILENAME}.sh from same directory as this file
+. "$(cd "`dirname "$0"`" && pwd)/{SETUP_FILENAME}.sh"
+exec "$@"
+""".format(**variables))
         os.chmod(new_env_path, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
 
     # Generate setup.sh for chaining to catkin packages
     # except if using --merge which implies that new_setup_path equals last_setup_env
     new_setup_path = os.path.join(install_target, 'setup.sh')
-    new_setup_path = prefix_destdir(new_setup_path, destdir)
+    if install:
+        new_setup_path = prefix_destdir(new_setup_path, destdir)
     last_setup_env = os.path.join(os.path.dirname(last_env), 'setup.sh') if last_env is not None else None
     if new_setup_path != last_setup_env:
         subs = {}
@@ -482,7 +504,7 @@ def build_cmake_package(
         subs['path'] = os.path.join(install_target, 'bin') + ":"
         if not os.path.exists(os.path.dirname(new_setup_path)):
             os.mkdir(os.path.dirname(new_setup_path))
-        with open(new_setup_path, 'w+') as file_handle:
+        with open(new_setup_path, 'w') as file_handle:
             file_handle.write("""\
 #!/usr/bin/env sh
 # generated from catkin.builder module
@@ -564,7 +586,8 @@ def get_new_env(package, develspace, installspace, install, last_env, destdir=No
             installspace if install else develspace,
             'env.sh'
         )
-        new_env = prefix_destdir(new_env, destdir)
+        if install:
+            new_env = prefix_destdir(new_env, destdir)
     return new_env
 
 
@@ -736,18 +759,9 @@ def build_workspace_isolated(
         sys.exit('Can not build workspace with packages of unknown build_type')
 
     # Check to see if the workspace has changed
-    if not force_cmake:
-        force_cmake, install_toggled = cmake_input_changed(
-            packages,
-            buildspace,
-            install=install,
-            cmake_args=cmake_args,
-            filename='catkin_make_isolated'
-        )
-        if force_cmake:
-            print('The packages or cmake arguments have changed, forcing cmake invocation')
-        elif install_toggled:
-            print('The install argument has been toggled, forcing cmake invocation on plain cmake package')
+    if not force_cmake and cmake_input_changed(packages, buildspace, cmake_args=cmake_args, filename='catkin_make_isolated'):
+        print('The packages or cmake arguments have changed, forcing cmake invocation')
+        force_cmake = True
 
     # Build packages
     pkg_develspace = None
@@ -762,12 +776,10 @@ def build_workspace_isolated(
             if continue_from_pkg and build_packages and package.name in build_packages:
                 build_packages = None
             try:
-                export_tags = [e.tagname for e in package.exports]
-                is_cmake_package = 'cmake' in [e.content for e in package.exports if e.tagname == 'build_type']
                 last_env = build_package(
                     path, package,
                     workspace, buildspace, pkg_develspace, installspace,
-                    install, force_cmake or (install_toggled and is_cmake_package),
+                    install, force_cmake,
                     quiet, last_env, cmake_args, make_args, catkin_make_args,
                     destdir=destdir,
                     number=index + 1, of=len(ordered_packages)
@@ -797,10 +809,9 @@ def build_workspace_isolated(
         os.makedirs(develspace)
     if not build_packages:
         generated_env_sh = os.path.join(develspace, 'env.sh')
-        generated_setup_sh = os.path.join(develspace, 'setup.sh')
         generated_setup_util_py = os.path.join(develspace, '_setup_util.py')
         if not merge and pkg_develspace:
-            # generate env.sh and setup.sh which relay to last devel space
+            # generate env.sh and setup.sh|bash|zsh which relay to last devel space
             with open(generated_env_sh, 'w') as f:
                 f.write("""\
 #!/usr/bin/env sh
@@ -809,16 +820,22 @@ def build_workspace_isolated(
 {0} "$@"
 """.format(os.path.join(pkg_develspace, 'env.sh')))
             os.chmod(generated_env_sh, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
-            with open(generated_setup_sh, 'w') as f:
-                f.write("""\
-#!/usr/bin/env sh
+
+            for shell in ['sh', 'bash', 'zsh']:
+                with open(os.path.join(develspace, 'setup.%s' % shell), 'w') as f:
+                    f.write("""\
+#!/usr/bin/env {1}
 # generated from catkin.builder module
 
-. "{0}/setup.sh"
-""".format(pkg_develspace))
+. "{0}/setup.{1}"
+""".format(pkg_develspace, shell))
+
+            # remove _setup_util.py file which might have been generated for an empty devel space before
+            if os.path.exists(generated_setup_util_py):
+                os.remove(generated_setup_util_py)
 
         elif not pkg_develspace:
-            # generate env.sh and setup.sh for an empty devel space
+            # generate env.sh and setup.sh|bash|zsh for an empty devel space
             if 'CMAKE_PREFIX_PATH' in os.environ.keys():
                 variables = {
                     'CATKIN_GLOBAL_BIN_DESTINATION': 'bin',
@@ -832,38 +849,24 @@ def build_workspace_isolated(
             else:
                 sys.exit("Unable to process CMAKE_PREFIX_PATH from environment. Cannot generate environment files.")
 
-            variables = {
-                'SETUP_FILENAME': 'setup'
-            }
+            variables = {'SETUP_FILENAME': 'setup'}
             with open(generated_env_sh, 'w') as f:
                 f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'env.sh.in'), variables))
             os.chmod(generated_env_sh, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
+
             variables = {'SETUP_DIR': develspace}
-            with open(generated_setup_sh, 'w') as f:
-                f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.sh.in'), variables))
-
-        if not merge and pkg_develspace:
-            # remove _setup_util.py file which might have been generated for an empty
-            if os.path.exists(generated_setup_util_py):
-                os.remove(generated_setup_util_py)
-
-        if not merge or not pkg_develspace:
-            # generate setup.bash and setup.zsh for convenience
-            variables = {'SETUP_DIR': develspace}
-            with open(os.path.join(develspace, 'setup.bash'), 'w') as f:
-                f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.bash.in'), variables))
-            with open(os.path.join(develspace, 'setup.zsh'), 'w') as f:
-                f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.zsh.in'), variables))
+            for shell in ['sh', 'bash', 'zsh']:
+                with open(os.path.join(develspace, 'setup.%s' % shell), 'w') as f:
+                    f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.%s.in' % shell), variables))
 
 
-def cmake_input_changed(packages, build_path, install=None, cmake_args=None, filename='catkin_make'):
+def cmake_input_changed(packages, build_path, cmake_args=None, filename='catkin_make'):
     # get current input
     package_paths = os.pathsep.join(sorted(packages.keys()))
     cmake_args = ' '.join(cmake_args) if cmake_args else ''
 
     # file to store current input
     changed = False
-    install_toggled = False
     input_filename = os.path.join(build_path, '%s.cache' % filename)
     if not os.path.exists(input_filename):
         changed = True
@@ -872,16 +875,13 @@ def cmake_input_changed(packages, build_path, install=None, cmake_args=None, fil
         with open(input_filename, 'r') as f:
             previous_package_paths = f.readline().rstrip()
             previous_cmake_args = f.readline().rstrip()
-            previous_install = f.readline().rstrip() == str(True)
         if package_paths != previous_package_paths:
             changed = True
         if cmake_args != previous_cmake_args:
             changed = True
-        if install is not None and install != previous_install:
-            install_toggled = True
 
     # store current input for next invocation
     with open(input_filename, 'w') as f:
-        f.write('%s\n%s\n%s' % (package_paths, cmake_args, install))
+        f.write('%s\n%s' % (package_paths, cmake_args))
 
-    return changed, install_toggled
+    return changed
