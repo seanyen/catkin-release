@@ -2,6 +2,10 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.76 (2013-10-06)
+-------------------
+* fix regression in catkin_make from 0.5.75
+
 0.5.75 (2013-10-04)
 -------------------
 * add --all option to catkin_test_results
