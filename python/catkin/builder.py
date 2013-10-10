@@ -214,7 +214,7 @@ def _check_build_dir(name, workspace, buildspace):
             blue_arrow + ' Creating build directory: \'' +
             os.path.relpath(package_build_dir, workspace) + '\'@|'
         )
-        os.mkdir(package_build_dir)
+        os.makedirs(package_build_dir)
     return package_build_dir
 
 
@@ -295,11 +295,7 @@ def build_catkin_package(
     )
 
     # Make the build dir
-    if install:
-        build_dir_name = '%s_install' % package.name
-    else:
-        build_dir_name = '%s_devel' % package.name
-    build_dir = _check_build_dir(build_dir_name, workspace, buildspace)
+    build_dir = _check_build_dir(package.name, workspace, buildspace)
 
     # Check last_env
     if last_env is not None:
@@ -405,7 +401,11 @@ def build_cmake_package(
     )
 
     # Make the build dir
-    build_dir = _check_build_dir(package.name, workspace, buildspace)
+    if install:
+        build_dir_name = '%s%sinstall' % (package.name, os.sep)
+    else:
+        build_dir_name = '%s%sdevel' % (package.name, os.sep)
+    build_dir = _check_build_dir(build_dir_name, workspace, buildspace)
 
     # Check last_env
     if last_env is not None:
@@ -470,6 +470,8 @@ def build_cmake_package(
             'SETUP_DIR': install_target,
             'SETUP_FILENAME': 'setup'
         }
+        if not os.path.exists(os.path.dirname(new_env_path)):
+            os.mkdir(os.path.dirname(new_env_path))
         with open(os.path.join(new_env_path), 'w') as f:
             f.write("""\
 #!/usr/bin/env sh
@@ -509,9 +511,13 @@ exec "$@"
 #!/usr/bin/env sh
 # generated from catkin.builder module
 
+# remember type of shell if not already set
+if [ -z "$CATKIN_SHELL" ]; then
+  CATKIN_SHELL=sh
+fi
 """)
             if last_env is not None:
-                file_handle.write('. %s\n\n' % last_setup_env)
+                file_handle.write('. %s.$CATKIN_SHELL\n\n' % last_setup_env[:-3])
             file_handle.write("""\
 # detect if running on Darwin platform
 _UNAME=`uname -s`
@@ -531,6 +537,20 @@ export PATH="{path}$PATH"
 export PKG_CONFIG_PATH="{pkgcfg_path}$PKG_CONFIG_PATH"
 export PYTHONPATH="{pythonpath}$PYTHONPATH"
 """.format(**subs))
+
+        # generate setup.bash|zsh scripts
+        for shell in ['bash', 'zsh']:
+            setup_path = os.path.join(install_target, 'setup.%s' % shell)
+            if install:
+                setup_path = prefix_destdir(setup_path, destdir)
+            with open(setup_path, 'w') as f:
+                f.write("""\
+#!/usr/bin/env {1}
+# generated from catkin.builder module
+
+CATKIN_SHELL={1}
+. "{0}/setup.sh"
+""".format(os.path.dirname(setup_path), shell))
 
 
 def build_package(
