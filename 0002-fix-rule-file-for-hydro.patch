@@ -1,4 +1,4 @@
-From 952b3f10e7d28195de3947e620c8ad47d3ad3b76 Mon Sep 17 00:00:00 2001
+From 021eefea8265052fc0c164c8d3318e31a6bc5479 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Fri, 22 Mar 2013 14:08:12 -0700
 Subject: [PATCH 2/2] fix rule file for hydro
