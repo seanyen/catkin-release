@@ -13,7 +13,7 @@ from catkin_pkg.package_version import bump_version
 from catkin_pkg.packages import find_packages, verify_equal_package_versions
 
 # find the import relatively if available to work before installing catkin or overlaying installed version
-if os.path.exists(os.path.join(os.path.dirname(__file__), 'CMakeLists.txt')):
+if os.path.exists(os.path.join(os.path.dirname(__file__), '..', 'python', 'catkin', '__init__.py')):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
 from catkin.package_version import get_forthcoming_label, update_versions, update_changelog_sections
 from catkin.terminal_color import disable_ANSI_colors, fmt
@@ -97,7 +97,7 @@ def check_clean_working_copy(base_path, vcs_type):
 
 
 def commit_files(base_path, vcs_type, packages, packages_with_changelogs, message, dry_run=False):
-    cmd = [_find_executable(vcs_type), 'commit', '-m', '"%s"' % message]
+    cmd = [_find_executable(vcs_type), 'commit', '-m', message]
     cmd += [os.path.join(p, PACKAGE_MANIFEST_FILENAME) for p in packages.keys()]
     cmd += [path for path, _, _ in packages_with_changelogs.values()]
     if not dry_run:
@@ -189,6 +189,9 @@ def main():
         help="Run without user interaction, confirming all questions with 'yes'")
     args = parser.parse_args()
 
+    if args.tag_prefix and ' ' in args.tag_prefix:
+        parser.error('The tag prefix must not contain spaces')
+
     # force --no-color if stdout is non-interactive
     if not sys.stdout.isatty():
         args.no_color = True
@@ -235,7 +238,7 @@ def main():
             raise RuntimeError(fmt("@{rf}Aborted release, fix the names of the packages."))
 
     local_modifications = []
-    for pkg_path, package in packages.iteritems():
+    for pkg_path, package in packages.items():
         # verify that the package.xml files don't have modifications pending
         package_xml_path = os.path.join(pkg_path, PACKAGE_MANIFEST_FILENAME)
         if has_changes(base_path, package_xml_path, vcs_type):
@@ -253,12 +256,12 @@ def main():
     tag_name = args.tag_prefix + new_version
 
     if not args.non_interactive and not prompt_continue(fmt("Prepare release of version '@{bf}@{boldon}%s@{boldoff}@{reset}'%s" % (new_version, " (tagged as '@{bf}@{boldon}%s@{boldoff}@{reset}')" % tag_name if args.tag_prefix else '')), default=True):
-        raise RuntimeError(fmt("@{rf}Aborted release, use option '--bump' to release a different version."))
+        raise RuntimeError(fmt("@{rf}Aborted release, use option '--bump' to release a different version and/or '--tag-prefix' to add a prefix to the tag name."))
 
     # check for changelog entries
     missing_changelogs = []
     missing_changelogs_but_forthcoming = {}
-    for pkg_path, package in packages.iteritems():
+    for pkg_path, package in packages.items():
         changelog_path = os.path.join(pkg_path, CHANGELOG_FILENAME)
         if not os.path.exists(changelog_path):
             missing_changelogs.append(package.name)
