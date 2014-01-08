@@ -6,7 +6,7 @@ import os
 import sys
 
 # find the import relatively if available to work before installing catkin or overlaying installed version
-if os.path.exists(os.path.join(os.path.dirname(__file__), 'CMakeLists.txt')):
+if os.path.exists(os.path.join(os.path.dirname(__file__), '..', 'python', 'catkin', '__init__.py')):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
 try:
     from catkin_pkg.topological_order import topological_order
@@ -35,7 +35,7 @@ def main():
         sys.stderr.write('Workspace "%s" seems to not contain any projects.'
                          ' Have you passed the correct path to a '
                          'catkin workspace?' % workspace)
-        exit(3)
+        sys.exit(3)
 
     for (path, package) in ordered_projects:
         if args.only_folders:
