@@ -1,3 +1,22 @@
+## catkin - 0.5.80-0
+
+User `dthomas@drudge` released the packages in the `catkin` repository by running `/usr/bin/bloom-release -r hydro -t hydro catkin` on `Mon, 27 Jan 2014 21:31:18 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+- rosdistro version: `0.5.79-0`
+- old version: `0.5.79-0`
+- new version: `0.5.80-0`
+
+Versions of tools used:
+- bloom version: `0.4.7`
+- catkin_pkg version: `0.1.25`
+- rosdep version: `0.10.25`
+- rosdistro version: `0.3.0`
+- vcstools version: `0.1.33`
+
+
 ## catkin - 0.5.79-0
 
 User `dthomas@drudge` released the packages in the `catkin` repository by running `/usr/bin/bloom-release -r hydro -t hydro catkin` on `Thu, 09 Jan 2014 22:37:25 -0000`
