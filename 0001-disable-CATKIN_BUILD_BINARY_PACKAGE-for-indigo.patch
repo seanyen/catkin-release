@@ -1,0 +1,27 @@
+From 6f51fddca33db9cf8255465e391e4c415b3a989b Mon Sep 17 00:00:00 2001
+From: Dirk Thomas <dthomas@osrfoundation.org>
+Date: Wed, 29 Jan 2014 14:27:49 -0800
+Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for indigo
+
+---
+ debian/rules.em |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/debian/rules.em b/debian/rules.em
+index d45dd5f..fc9408b 100755
+--- a/debian/rules.em
++++ b/debian/rules.em
+@@ -25,9 +25,9 @@ override_dh_auto_configure:
+ 	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
+ 	if [ -f "@(InstallationPrefix)/setup.sh" ]; then . "@(InstallationPrefix)/setup.sh"; fi && \
+ 	dh_auto_configure -- \
+-		-DCATKIN_BUILD_BINARY_PACKAGE="1" \
+ 		-DCMAKE_INSTALL_PREFIX="@(InstallationPrefix)" \
+ 		-DCMAKE_PREFIX_PATH="@(InstallationPrefix)"
++#		-DCATKIN_BUILD_BINARY_PACKAGE="1"
+ 
+ override_dh_auto_build:
+ 	# In case we're installing to a non-standard location, look for a setup.sh
+-- 
+1.7.10.4
+
