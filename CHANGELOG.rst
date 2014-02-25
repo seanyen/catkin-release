@@ -2,9 +2,25 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.5.81 (2014-01-30)
--------------------
-* fix generated find_package() logic when used from dry packages: remove debug_message usage from generated pkgConfig.cmake files (`#583 <https://github.com/ros/catkin/issues/583>`_)
+0.6.2 (2014-02-24)
+------------------
+* use underlay workspaces when calculating topological order (`#590 <https://github.com/ros/catkin/issues/590>`_)
+* remove restriction to run unit test single threaded (`#597 <https://github.com/ros/catkin/issues/597>`_)
+* support using nosetests with Python3 (`#593 <https://github.com/ros/catkin/issues/593>`_)
+* remove invalid symbolic links of workspace level CMakeLists.txt file (`#591 <https://github.com/ros/catkin/issues/591>`_)
+* remove debug_message usage from generated pkgConfig.cmake files (`#583 <https://github.com/ros/catkin/issues/583>`_)
+* use catkin_install_python() to install Python scripts (`#596 <https://github.com/ros/catkin/issues/596>`_)
+* fix unicode error with japanese LANG (`#578 <https://github.com/ros/catkin/issues/578>`_)
+* fix gtest include dir when using gtest inside the workspace (`#585 <https://github.com/ros/catkin/issues/585>`_)
+
+0.6.1 (2014-01-29)
+------------------
+* remove more obsolete files (`#582 <https://github.com/ros/catkin/issues/582>`_)
+
+0.6.0 (2014-01-29)
+------------------
+* remove deprecated functionality (`#582 <https://github.com/ros/catkin/issues/582>`_)
+* remove eigen CMake config files (`#492 <https://github.com/ros/catkin/issues/492>`_)
 * fix EXPORTED_TARGETS argument for catkin_package() (`#581 <https://github.com/ros/catkin/issues/581>`_)
 
 0.5.80 (2014-01-27)
