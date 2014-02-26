@@ -1,4 +1,4 @@
-From 8f4dd826cbbcc8c8ee5071622a06fdacbef0504e Mon Sep 17 00:00:00 2001
+From ef977f885f04ac23b9d73d533b523bf8c91890c1 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Fri, 22 Mar 2013 14:08:41 -0700
 Subject: [PATCH 2/2] fix rule file for groovy
