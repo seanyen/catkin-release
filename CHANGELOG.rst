@@ -2,6 +2,23 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.86 (2014-03-03)
+-------------------
+* rewrite exported include dirs when pointing to absolute source / build / devel space (`#600 <https://github.com/ros/catkin/issues/600>`_)
+* improve error messages for wrong include dirs
+
+0.5.85 (2014-02-28)
+-------------------
+* fix bug in string length calculation (regression from 0.5.84, `#601 <https://github.com/ros/catkin/issues/601>`_)
+
+0.5.84 (2014-02-27)
+-------------------
+* fix handling include directories for generated header in devel space (regression from 0.5.83, `#600 <https://github.com/ros/catkin/issues/600>`_)
+
+0.5.83 (2014-02-27)
+-------------------
+* allow passing absolute INCLUDE_DIRS via catkin_package() into CMake config file in install space (`#600 <https://github.com/ros/catkin/issues/600>`_)
+
 0.5.82 (2014-02-25)
 -------------------
 * fix detection of Python version for CMake 2.8.6 and older (regression from 0.5.78, `#570 <https://github.com/ros/catkin/issues/570>`_)
