@@ -76,7 +76,7 @@ class MockTest(AbstractCatkinWorkspaceTest):
                          expect=fail)
         print("failed as expected, out=", out)
 
-        self.assertTrue("catkin_package() PROJECT_NAME is set to 'Project'" in out, out)
+        self.assertTrue(b"catkin_package() PROJECT_NAME is set to 'Project'" in out, out)
         # assert 'You must call project() with the same name before.' in out
 
     # Test was not finished apparently
@@ -104,7 +104,8 @@ class MockTest(AbstractCatkinWorkspaceTest):
         result = em.expand(template, gdict,
                            source_root_dir=self.workspacedir,
                            whitelisted_packages=None,
-                           blacklisted_packages=None)
+                           blacklisted_packages=None,
+                           underlay_workspaces=None)
         self.assertTrue('set(CATKIN_ORDERED_PACKAGES "")' in result, result)
         self.assertTrue('set(CATKIN_ORDERED_PACKAGE_PATHS "")' in result, result)
         self.assertTrue('set(CATKIN_ORDERED_PACKAGES_IS_META "")' in result, result)
