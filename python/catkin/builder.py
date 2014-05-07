@@ -39,7 +39,7 @@ import platform
 import re
 import stat
 try:
-    from cStringIO import StringIO
+    from StringIO import StringIO
 except ImportError:
     from io import StringIO
 import subprocess
@@ -58,6 +58,7 @@ except ImportError as e:
 
 from catkin.cmake import get_cmake_path
 from catkin.terminal_color import ansi, disable_ANSI_colors, fmt, sanitize
+from catkin_pkg.workspaces import ensure_workspace_marker
 
 
 def split_arguments(args, splitter_name, default=None):
@@ -191,11 +192,24 @@ def run_command(cmd, cwd, quiet=False, colorize=False, add_env=None):
         while True:
             line = proc.stdout.readline()
             try:
-                line = line.decode('utf8')
-            except AttributeError:
-                # do nothing for Python 3
+                # try decoding in case the output is encoded
+                line = line.decode('utf8', 'replace')
+            except (AttributeError, UnicodeEncodeError):
+                # do nothing for Python 3 when line is already a str
+                # or when the string can't be decoded
                 pass
-            line = line.encode('utf8', 'replace')
+
+            # ensure that it is convertable to the target encoding
+            encoding = 'utf8'
+            try:
+                if out.encoding:
+                    encoding = out.encoding
+            except AttributeError:
+                # do nothing for Python 2
+                pass
+            line = line.encode(encoding, 'replace')
+            line = line.decode(encoding, 'replace')
+
             if proc.returncode is not None or not line:
                 break
             try:
@@ -235,14 +249,33 @@ def isolation_print_command(cmd, path=None, add_env=None):
     )
 
 
+def get_multiarch():
+    if not sys.platform.lower().startswith('linux'):
+        return ''
+    # this function returns the suffix for lib directories on supported systems or an empty string
+    # it uses two step approach to look for multiarch: first run gcc -print-multiarch and if
+    # failed try to run dpkg-architecture
+    p = subprocess.Popen(
+        ['gcc', '-print-multiarch'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    if p.returncode != 0:
+        out, err = subprocess.Popen(
+            ['dpkg-architecture', '-qDEB_HOST_MULTIARCH'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+
+    # be sure of returning empty string or a valid multiarch tuple format
+    assert(not out.strip() or out.strip().count('-') == 2);
+    return out.strip()
+
 def get_python_install_dir():
     # this function returns the same value as the CMake variable PYTHON_INSTALL_DIR from catkin/cmake/python.cmake
     python_install_dir = 'lib'
     python_use_debian_layout = os.path.exists('/etc/debian_version')
     if os.name != 'nt':
-        python_version_xdoty = str(sys.version_info[0])
-        if not python_use_debian_layout:
-            python_version_xdoty += '.' + str(sys.version_info[1])
+        python_version_xdoty = str(sys.version_info[0]) + '.' + str(sys.version_info[1])
+        if python_use_debian_layout and sys.version_info[0] == 3:
+            python_version_xdoty = str(sys.version_info[0])
         python_install_dir = os.path.join(python_install_dir, 'python' + python_version_xdoty)
 
     python_packages_dir = 'dist-packages' if python_use_debian_layout else 'site-packages'
@@ -505,9 +538,12 @@ exec "$@"
         subs['ld_path'] = os.path.join(install_target, 'lib') + ":"
         pythonpath = os.path.join(install_target, get_python_install_dir())
         subs['pythonpath'] = pythonpath + ':'
-        subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig')
-        subs['pkgcfg_path'] += ":"
+        subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig') + ":"
         subs['path'] = os.path.join(install_target, 'bin') + ":"
+        arch = get_multiarch()
+        if arch:
+            subs['ld_path'] += os.path.join(install_target, 'lib', arch) + ":"
+            subs['pkgcfg_path'] += os.path.join(install_target, 'lib', arch, 'pkgconfig') + ":"
         if not os.path.exists(os.path.dirname(new_setup_path)):
             os.mkdir(os.path.dirname(new_setup_path))
         with open(new_setup_path, 'w') as file_handle:
@@ -769,6 +805,10 @@ def build_workspace_isolated(
     msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~' + ('~' * len(str(len(ordered_packages)))))
     msg.append('@{pf}~~@|  traversing %d packages in topological order:' % len(ordered_packages))
     for path, package in ordered_packages:
+        if path is None:
+            print(fmt('@{rf}Error: Circular dependency in subset of packages: @!%s@|' % package))
+            sys.exit('Can not build workspace with circular dependency')
+
         export_tags = [e.tagname for e in package.exports]
         if 'build_type' in export_tags:
             build_type_tag = [e.content for e in package.exports if e.tagname == 'build_type'][0]
@@ -801,6 +841,8 @@ def build_workspace_isolated(
     if not force_cmake and cmake_input_changed(packages, buildspace, cmake_args=cmake_args, filename='catkin_make_isolated'):
         print('The packages or cmake arguments have changed, forcing cmake invocation')
         force_cmake = True
+
+    ensure_workspace_marker(workspace)
 
     # Build packages
     pkg_develspace = None
@@ -936,7 +978,7 @@ def get_package_names_with_recursive_dependencies(packages, pkg_names):
         if pkg_name in packages_by_name:
             pkg = packages_by_name[pkg_name]
             dependencies.add(pkg_name)
-            for dep in [dep.name for dep in (pkg.build_depends + pkg.buildtool_depends + pkg.run_depends)]:
+            for dep in [dep.name for dep in (pkg.build_depends + pkg.buildtool_depends + pkg.run_depends + (pkg.test_depends if pkg.package_format > 1 else []))]:
                 if dep in packages_by_name and dep not in check_pkg_names and dep not in dependencies:
                     check_pkg_names.add(dep)
     return dependencies
