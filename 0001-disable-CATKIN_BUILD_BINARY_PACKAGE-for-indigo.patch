@@ -1,10 +1,10 @@
-From a0d4472f0ba30e5e1befe02b996dc2aff593e4ea Mon Sep 17 00:00:00 2001
+From 8e5af1062c1fb63c2a36d916c96906a2113f88fa Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Wed, 29 Jan 2014 14:27:49 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for indigo
 
 ---
- debian/rules.em |    2 +-
+ debian/rules.em | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules.em b/debian/rules.em
@@ -23,5 +23,5 @@ index 06777bd..253b807 100755
  override_dh_auto_build:
  	# In case we're installing to a non-standard location, look for a setup.sh
 -- 
-1.7.10.4
+1.9.1
 
