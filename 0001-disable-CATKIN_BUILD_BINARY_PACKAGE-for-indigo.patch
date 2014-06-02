@@ -1,4 +1,4 @@
-From 8e5af1062c1fb63c2a36d916c96906a2113f88fa Mon Sep 17 00:00:00 2001
+From 659deb7ecb4f5ed2b45f2ae5fc822e376dcff0ae Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Wed, 29 Jan 2014 14:27:49 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for indigo
