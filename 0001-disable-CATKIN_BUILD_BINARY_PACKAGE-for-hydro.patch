@@ -1,10 +1,10 @@
-From 3d191065695cee6c7f853f768986d69b44a06be1 Mon Sep 17 00:00:00 2001
+From 650627b204dc42bf7fbe8ecab152e1ef024ad405 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Thu, 21 Mar 2013 18:47:13 -0700
 Subject: [PATCH 1/2] disable CATKIN_BUILD_BINARY_PACKAGE for hydro
 
 ---
- debian/rules.em |    2 +-
+ debian/rules.em | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules.em b/debian/rules.em
@@ -21,5 +21,5 @@ index d45dd5f..8de67c5 100755
  		-DCMAKE_PREFIX_PATH="@(InstallationPrefix)"
  
 -- 
-1.7.10.4
+1.9.1
 
