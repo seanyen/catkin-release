@@ -1,6 +1,5 @@
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
@@ -8,19 +7,17 @@ from catkin_pkg.cmake import configure_file
 
 data = configure_file(os.path.join(os.path.dirname(__file__), '..', '..', 'cmake', 'templates', '_setup_util.py.in'),
                       {
-                          'CATKIN_LIB_ENVIRONMENT_PATHS': "'lib'",
-                          'CATKIN_PKGCONFIG_ENVIRONMENT_PATHS': "os.path.join('lib', 'pkgconfig')",
+                          'CATKIN_GLOBAL_LIB_DESTINATION': 'lib',
                           'CATKIN_GLOBAL_BIN_DESTINATION': 'bin',
-                          'PYTHON_EXECUTABLE': sys.executable,
                           'PYTHON_INSTALL_DIR': 'pythonX.Y/packages',
                           'CMAKE_PREFIX_PATH_AS_IS': '',
                       })
-with tempfile.NamedTemporaryFile('w+') as setup_util_file:
+with tempfile.TemporaryFile() as setup_util_file:
     setup_util_file.write(data)
     setup_util_file.seek(0)
 
     import imp
-    imp.load_source('setup_util', setup_util_file.name, setup_util_file.file)
+    imp.load_source('setup_util', '/somewhere/_setup_util.py', setup_util_file)
 
 import setup_util
 from setup_util import _get_workspaces, _prefix_env_variable, _rollback_env_variable, CATKIN_MARKER_FILE

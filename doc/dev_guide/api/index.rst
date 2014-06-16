@@ -15,6 +15,7 @@ Scripts used by cmake macros:
 
    interrogate_setup_dot_py
    parse_package_xml
+   python_version
 
 
 Indices and tables
