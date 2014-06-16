@@ -39,7 +39,7 @@ import platform
 import re
 import stat
 try:
-    from cStringIO import StringIO
+    from StringIO import StringIO
 except ImportError:
     from io import StringIO
 import subprocess
@@ -202,11 +202,24 @@ def run_command(cmd, cwd, quiet=False, colorize=False, add_env=None):
         while True:
             line = proc.stdout.readline()
             try:
-                # in case the input is already unicode
-                line = line.encode('utf8')
-            except (AttributeError, UnicodeDecodeError):
+                # try decoding in case the output is encoded
+                line = line.decode('utf8', 'replace')
+            except (AttributeError, UnicodeEncodeError):
+                # do nothing for Python 3 when line is already a str
+                # or when the string can't be decoded
                 pass
-            line = line.decode('utf8', 'replace')
+
+            # ensure that it is convertable to the target encoding
+            encoding = 'utf8'
+            try:
+                if out.encoding:
+                    encoding = out.encoding
+            except AttributeError:
+                # do nothing for Python 2
+                pass
+            line = line.encode(encoding, 'replace')
+            line = line.decode(encoding, 'replace')
+
             if proc.returncode is not None or not line:
                 break
             try:
@@ -246,6 +259,25 @@ def isolation_print_command(cmd, path=None, add_env=None):
     )
 
 
+def get_multiarch():
+    if not sys.platform.lower().startswith('linux'):
+        return ''
+    # this function returns the suffix for lib directories on supported systems or an empty string
+    # it uses two step approach to look for multiarch: first run gcc -print-multiarch and if
+    # failed try to run dpkg-architecture
+    p = subprocess.Popen(
+        ['gcc', '-print-multiarch'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    if p.returncode != 0:
+        out, err = subprocess.Popen(
+            ['dpkg-architecture', '-qDEB_HOST_MULTIARCH'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+
+    # be sure of returning empty string or a valid multiarch tuple format
+    assert(not out.strip() or out.strip().count('-') == 2);
+    return out.strip()
+
 def get_python_install_dir():
     # this function returns the same value as the CMake variable PYTHON_INSTALL_DIR from catkin/cmake/python.cmake
     python_install_dir = 'lib'
@@ -261,15 +293,8 @@ def get_python_install_dir():
     return python_install_dir
 
 
-def handle_make_arguments(input_make_args, force_single_threaded_when_running_tests=False):
+def handle_make_arguments(input_make_args):
     make_args = list(input_make_args)
-
-    if force_single_threaded_when_running_tests:
-        # force single threaded execution when running test since rostest does not support multiple parallel runs
-        run_tests = [a for a in make_args if a.startswith('run_tests')]
-        if run_tests:
-            print('Forcing "-j1" for running unit tests.')
-            make_args.append('-j1')
 
     # If no -j/--jobs/-l/--load-average flags are in make_args
     if not extract_jobs_flags(' '.join(make_args)):
@@ -378,7 +403,7 @@ def build_catkin_package(
 
     # Run make
     make_cmd = ['make']
-    make_cmd.extend(handle_make_arguments(make_args, force_single_threaded_when_running_tests=True))
+    make_cmd.extend(handle_make_arguments(make_args))
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
@@ -505,6 +530,9 @@ if [ $# -eq 0 ] ; then
   exit 1
 fi
 
+# ensure to not use different shell type which was set before
+CATKIN_SHELL=sh
+
 # source {SETUP_FILENAME}.sh from same directory as this file
 . "$(cd "`dirname "$0"`" && pwd)/{SETUP_FILENAME}.sh"
 exec "$@"
@@ -523,9 +551,12 @@ exec "$@"
         subs['ld_path'] = os.path.join(install_target, 'lib') + ":"
         pythonpath = os.path.join(install_target, get_python_install_dir())
         subs['pythonpath'] = pythonpath + ':'
-        subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig')
-        subs['pkgcfg_path'] += ":"
+        subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig') + ":"
         subs['path'] = os.path.join(install_target, 'bin') + ":"
+        arch = get_multiarch()
+        if arch:
+            subs['ld_path'] += os.path.join(install_target, 'lib', arch) + ":"
+            subs['pkgcfg_path'] += os.path.join(install_target, 'lib', arch, 'pkgconfig') + ":"
         if not os.path.exists(os.path.dirname(new_setup_path)):
             os.mkdir(os.path.dirname(new_setup_path))
         with open(new_setup_path, 'w') as file_handle:
@@ -898,8 +929,10 @@ def build_workspace_isolated(
             if 'CMAKE_PREFIX_PATH' in os.environ.keys():
                 variables = {
                     'CATKIN_GLOBAL_BIN_DESTINATION': 'bin',
-                    'CATKIN_GLOBAL_LIB_DESTINATION': 'lib',
+                    'CATKIN_LIB_ENVIRONMENT_PATHS': "'lib'",
+                    'CATKIN_PKGCONFIG_ENVIRONMENT_PATHS': "os.path.join('lib', 'pkgconfig')",
                     'CMAKE_PREFIX_PATH_AS_IS': ';'.join(os.environ['CMAKE_PREFIX_PATH'].split(os.pathsep)),
+                    'PYTHON_EXECUTABLE': sys.executable,
                     'PYTHON_INSTALL_DIR': get_python_install_dir(),
                 }
                 with open(generated_setup_util_py, 'w') as f:
