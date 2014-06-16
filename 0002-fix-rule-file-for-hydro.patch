@@ -1,4 +1,4 @@
-From 6afd3383469dadabbc8c579d67f8d906adddf2e4 Mon Sep 17 00:00:00 2001
+From cb8d1818a74ff9a812770ead1384a8969becc4e9 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Fri, 22 Mar 2013 14:08:12 -0700
 Subject: [PATCH 2/2] fix rule file for hydro
@@ -8,7 +8,7 @@ Subject: [PATCH 2/2] fix rule file for hydro
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules.em b/debian/rules.em
-index 8de67c5..fc9408b 100755
+index 6735150..253b807 100755
 --- a/debian/rules.em
 +++ b/debian/rules.em
 @@ -25,9 +25,9 @@ override_dh_auto_configure:
