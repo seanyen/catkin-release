@@ -77,11 +77,11 @@ function(catkin_generate_environment)
   if(NOT CATKIN_BUILD_BINARY_PACKAGE)
     # install empty workspace marker if it doesn't already exist
     install(CODE "
-      if (NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}\")
-        file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\")
+      if (NOT EXISTS \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\")
+        file(MAKE_DIRECTORY \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\")
       endif()
-      if (NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/.catkin\")
-        file(WRITE \"\${CMAKE_INSTALL_PREFIX}/.catkin\" \"\")
+      if (NOT EXISTS \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/.catkin\")
+        file(WRITE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/.catkin\" \"\")
       endif()")
 
     # generate and install Python setup util
