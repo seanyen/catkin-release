@@ -2,57 +2,81 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.5.88 (2014-06-16)
--------------------
+0.6.8 (2014-07-10)
+------------------
+* make nosetests --xunit-file argument an absolute path to work around nose bug 779 (`#659 <https://github.com/ros/catkin/issues/659>`_)
+* fix handling of CMake packages which do not install any files (`#665 <https://github.com/ros/catkin/issues/665>`_)
+* fix gtest on Arch Linux and others (`#663 <https://github.com/ros/catkin/issues/663>`_)
+* improve generation of .catkin marker file (`#671 <https://github.com/ros/catkin/issues/671>`_, `#676 <https://github.com/ros/catkin/issues/676>`_)
+* escape messages to avoid CMake warning (`#667 <https://github.com/ros/catkin/issues/667>`_)
+* fix CMake warning for doxygen target with CMake 3 (`#660 <https://github.com/ros/catkin/issues/660>`_)
+* avoid using ARGN for efficiency (`#669 <https://github.com/ros/catkin/issues/669>`_)
+
+0.6.7 (2014-06-16)
+------------------
 * reset CATKIN_SHELL in devel space generated env.sh files (`#652 <https://github.com/ros/catkin/issues/652>`_, `#655 <https://github.com/ros/catkin/issues/655>`_)
 * ignore cd path echo when using CDPATH (`#654 <https://github.com/ros/catkin/issues/654>`_)
+* use PYTHON_EXECUTABLE for _setup_util.py (`#646 <https://github.com/ros/catkin/issues/646>`_)
 * expose PYTHON_EXECUTABLE to environment hook .em templates (`#645 <https://github.com/ros/catkin/issues/645>`_)
+* catkin_prepare_release:
 
+  * add --no-push to catkin_prepare_release (`#657 <https://github.com/ros/catkin/issues/657>`_)
+  * flush stdin before asking for input (`#658 <https://github.com/ros/catkin/issues/658>`_)
 
-0.5.87 (2014-06-02)
--------------------
+0.6.6 (2014-06-02)
+------------------
+* fix rollback of environment when workspace has been deleted (`#641 <https://github.com/ros/catkin/issues/641>`_)
+* fix argument handling when cm / cmi is invoked in a symlinked folder (`#638 <https://github.com/ros/catkin/issues/638>`_)
+
+0.6.5 (2014-05-25)
+------------------
+* fix regression in catkin_make_isolated from 0.6.4 (`#624 <https://github.com//ros/catkin/issues/624>`_)
+* fix problem when catkin_make / catkin_make_isolated is invoked in a symlinked folder (`#638 <https://github.com//ros/catkin/issues/638>`_)
+
+0.6.4 (2014-05-07)
+------------------
+* add architecture independent flag in package.xml (`#625 <https://github.com/ros/catkin/issues/625>`_)
 * add error message for circular dependencies in catkin_make_isolated and catkin_topological_order (`#607 <https://github.com/ros/catkin/issues/607>`_, `#608 <https://github.com/ros/catkin/issues/608>`_)
+* add multiarch support for catkin environment files (`#545 <https://github.com/ros/catkin/issues/545>`_)
 * add workspace marker file for catkin_make / catkin_make_isolated (`#304 <https://github.com/ros/catkin/issues/304>`_)
 * allow better performance for repeated invocations of find_in_workspaces()
 * consider test_depends for topolocial order (`#612 <https://github.com/ros/catkin/issues/612>`_)
+* invoke empy with specific Python interpreter (`#620 <https://github.com/ros/catkin/issues/620>`_)
 * support setting ${PROJECT_NAME}_LIBRARIES before invoking catkin_package() (`#609 <https://github.com/ros/catkin/issues/609>`_)
-
+* update package manifest to format 2 (`#619 <https://github.com/ros/catkin/issues/619>`_)
 * fixes:
 
-  * fix rollback of environment when workspace has been deleted (`#641 <https://github.com/ros/catkin/issues/641>`_)
-  * fix argument handling when cm / cmi is invoked in a symlinked folder (`#638 <https://github.com/ros/catkin/issues/638>`_)
   * fix catkin_find to not return path with '/.' suffix (`#621 <https://github.com/ros/catkin/issues/621>`_)
   * fix python path setting for plain cmake workspaces (`#618 <https://github.com/ros/catkin/issues/618>`_)
+  * improve unicode handling (`#615 <https://github.com/ros/catkin/issues/615>`_)
   * replace CMake usage of IMPORTED_IMPLIB with IMPORTED_LOCATION (`#616 <https://github.com/ros/catkin/issues/616>`_)
   * do not call chpwd hooks in setup.zsh (`#613 <https://github.com/ros/catkin/issues/613>`_)
   * set catkin_* variables only when find_package(catkin COMPONENTS ...) (`#629 <https://github.com/ros/catkin/issues/629>`_)
-  * remove invalid symbolic links of workspace level CMakeLists.txt file (`#591 <https://github.com/ros/catkin/issues/591>`_)
-  * fix gtest include dir when using gtest inside the workspace (`#585 <https://github.com/ros/catkin/issues/585>`_)
 
-0.5.86 (2014-03-03)
--------------------
-* rewrite exported include dirs when pointing to absolute source / build / devel space (`#600 <https://github.com/ros/catkin/issues/600>`_)
+0.6.3 (2014-03-04)
+------------------
+* allow passing absolute INCLUDE_DIRS via catkin_package() into CMake config file in install space (`#600 <https://github.com/ros/catkin/issues/600>`_, `#601 <https://github.com/ros/catkin/issues/601>`_)
 * improve error messages for wrong include dirs
 
-0.5.85 (2014-02-28)
--------------------
-* fix bug in string length calculation (regression from 0.5.84, `#601 <https://github.com/ros/catkin/issues/601>`_)
+0.6.2 (2014-02-24)
+------------------
+* use underlay workspaces when calculating topological order (`#590 <https://github.com/ros/catkin/issues/590>`_)
+* remove restriction to run unit test single threaded (`#597 <https://github.com/ros/catkin/issues/597>`_)
+* support using nosetests with Python3 (`#593 <https://github.com/ros/catkin/issues/593>`_)
+* remove invalid symbolic links of workspace level CMakeLists.txt file (`#591 <https://github.com/ros/catkin/issues/591>`_)
+* remove debug_message usage from generated pkgConfig.cmake files (`#583 <https://github.com/ros/catkin/issues/583>`_)
+* use catkin_install_python() to install Python scripts (`#596 <https://github.com/ros/catkin/issues/596>`_)
+* fix unicode error with japanese LANG (`#578 <https://github.com/ros/catkin/issues/578>`_)
+* fix gtest include dir when using gtest inside the workspace (`#585 <https://github.com/ros/catkin/issues/585>`_)
 
-0.5.84 (2014-02-27)
--------------------
-* fix handling include directories for generated header in devel space (regression from 0.5.83, `#600 <https://github.com/ros/catkin/issues/600>`_)
+0.6.1 (2014-01-29)
+------------------
+* remove more obsolete files (`#582 <https://github.com/ros/catkin/issues/582>`_)
 
-0.5.83 (2014-02-27)
--------------------
-* allow passing absolute INCLUDE_DIRS via catkin_package() into CMake config file in install space (`#600 <https://github.com/ros/catkin/issues/600>`_)
-
-0.5.82 (2014-02-25)
--------------------
-* fix detection of Python version for CMake 2.8.6 and older (regression from 0.5.78, `#570 <https://github.com/ros/catkin/issues/570>`_)
-
-0.5.81 (2014-01-30)
--------------------
-* fix generated find_package() logic when used from dry packages: remove debug_message usage from generated pkgConfig.cmake files (`#583 <https://github.com/ros/catkin/issues/583>`_)
+0.6.0 (2014-01-29)
+------------------
+* remove deprecated functionality (`#582 <https://github.com/ros/catkin/issues/582>`_)
+* remove eigen CMake config files (`#492 <https://github.com/ros/catkin/issues/492>`_)
 * fix EXPORTED_TARGETS argument for catkin_package() (`#581 <https://github.com/ros/catkin/issues/581>`_)
 
 0.5.80 (2014-01-27)

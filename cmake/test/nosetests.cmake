@@ -70,6 +70,8 @@ function(catkin_add_nosetests path)
   string(REPLACE ":" "." output_file_name ${output_file_name})
 
   set(output_path ${CATKIN_TEST_RESULTS_DIR}/${PROJECT_NAME})
+  # make --xunit-file argument an absolute path (https://github.com/nose-devs/nose/issues/779)
+  get_filename_component(output_path "${output_path}" ABSOLUTE)
   set(cmd "${CMAKE_COMMAND} -E make_directory ${output_path}")
   if(IS_DIRECTORY ${_path_name})
     set(tests "--where=${_path_name}")
@@ -80,18 +82,20 @@ function(catkin_add_nosetests path)
   catkin_run_tests_target("nosetests" ${output_file_name} "nosetests-${output_file_name}.xml" COMMAND ${cmd} DEPENDENCIES ${_nose_DEPENDENCIES} WORKING_DIRECTORY ${_nose_WORKING_DIRECTORY})
 endfunction()
 
-function(add_nosetests)
-  message(WARNING "add_nosetests() is deprecated, please rename the function call to catkin_add_nosetests()")
-  catkin_add_nosetests(${ARGN})
-endfunction()
-
-find_program(NOSETESTS nosetests)
-if(NOT nosetests_path)
-  # retry with name including major version number
-  find_program(NOSETESTS NAMES nosetests2 nosetests-2)
-endif()
-if(NOT NOSETESTS)
-  message(WARNING "nosetests not found, Python tests can not be run (try installing package 'python-nose')")
+find_program(NOSETESTS NAMES
+  "nosetests${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}"
+  "nosetests-${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}"
+  "nosetests${PYTHON_VERSION_MAJOR}"
+  "nosetests-${PYTHON_VERSION_MAJOR}"
+  "nosetests")
+if(NOSETESTS)
+  message(STATUS "Using Python nosetests: ${NOSETESTS}")
+else()
+  if("${PYTHON_VERSION_MAJOR}" STREQUAL "3")
+    message(WARNING "nosetests not found, Python tests can not be run (try installing package 'python3-nose')")
+  else()
+    message(WARNING "nosetests not found, Python tests can not be run (try installing package 'python-nose')")
+  endif()
 endif()
 
 macro(_strip_path_prefix var value prefix)

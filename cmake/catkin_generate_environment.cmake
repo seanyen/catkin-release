@@ -10,6 +10,32 @@ function(catkin_generate_environment)
     file(WRITE "${CMAKE_BINARY_DIR}/CATKIN_IGNORE" "")
   endif()
 
+  # get multiarch name
+  set(CATKIN_LIB_ENVIRONMENT_PATHS "'${CATKIN_GLOBAL_LIB_DESTINATION}'")
+  set(CATKIN_PKGCONFIG_ENVIRONMENT_PATHS "os.path.join('${CATKIN_GLOBAL_LIB_DESTINATION}', 'pkgconfig')")
+  if (UNIX AND NOT APPLE)
+    # Two step looking for multiarch support: check for gcc -print-multiarch
+    # and, if failed, try to run dpkg-architecture
+    execute_process(COMMAND gcc -print-multiarch
+                    OUTPUT_VARIABLE CATKIN_MULTIARCH
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET
+    )
+    if ("${CATKIN_MULTIARCH}" STREQUAL "")
+      execute_process(COMMAND dpkg-architecture -qDEB_HOST_MULTIARCH
+                      OUTPUT_VARIABLE CATKIN_MULTIARCH
+                      OUTPUT_STRIP_TRAILING_WHITESPACE
+                      ERROR_QUIET
+      )
+    endif()
+    if (NOT "${CATKIN_MULTIARCH}" STREQUAL "")
+      set(CATKIN_LIB_ENVIRONMENT_PATHS
+        "[${CATKIN_LIB_ENVIRONMENT_PATHS}, os.path.join('${CATKIN_GLOBAL_LIB_DESTINATION}', '${CATKIN_MULTIARCH}')]")
+      set(CATKIN_PKGCONFIG_ENVIRONMENT_PATHS
+        "[${CATKIN_PKGCONFIG_ENVIRONMENT_PATHS}, os.path.join('${CATKIN_GLOBAL_LIB_DESTINATION}', '${CATKIN_MULTIARCH}', 'pkgconfig')]")
+    endif()
+  endif()
+
   # generate Python setup util
   atomic_configure_file(${catkin_EXTRAS_DIR}/templates/_setup_util.py.in
     ${CATKIN_DEVEL_PREFIX}/_setup_util.py
@@ -49,16 +75,17 @@ function(catkin_generate_environment)
   set(SETUP_DIR ${CMAKE_INSTALL_PREFIX})
 
   if(NOT CATKIN_BUILD_BINARY_PACKAGE)
-    # generate and install workspace marker
-    file(WRITE ${CMAKE_BINARY_DIR}/catkin_generated/installspace/.catkin "")
-    install(FILES
-      ${CMAKE_BINARY_DIR}/catkin_generated/installspace/.catkin
-      DESTINATION ${CMAKE_INSTALL_PREFIX})
+    # install empty workspace marker if it doesn't already exist
+    install(CODE " 
+      if (NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/.catkin\") 
+        file(WRITE \"\${CMAKE_INSTALL_PREFIX}/.catkin\" \"\") 
+      endif()") 
+
     # generate and install Python setup util
     configure_file(${catkin_EXTRAS_DIR}/templates/_setup_util.py.in
       ${CMAKE_BINARY_DIR}/catkin_generated/installspace/_setup_util.py
       @ONLY)
-    install(PROGRAMS
+    catkin_install_python(PROGRAMS
       ${CMAKE_BINARY_DIR}/catkin_generated/installspace/_setup_util.py
       DESTINATION ${CMAKE_INSTALL_PREFIX})
   endif()
