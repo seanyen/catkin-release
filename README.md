@@ -1,3 +1,24 @@
+## catkin (groovy) - 0.5.89-0
+
+The packages in the `catkin` repository were released into the `groovy` distro by running `/usr/bin/bloom-release -r groovy -t groovy catkin` on `Tue, 19 Aug 2014 01:19:21 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.5.86-0`
+- old version: `0.5.86-0`
+- new version: `0.5.89-0`
+
+Versions of tools used:
+- bloom version: `0.5.11`
+- catkin_pkg version: `0.2.4`
+- rosdep version: `0.10.30`
+- rosdistro version: `0.3.5`
+- vcstools version: `0.1.35`
+
+
 ## catkin (hydro) - 0.5.89-0
 
 The packages in the `catkin` repository were released into the `hydro` distro by running `/usr/bin/bloom-release -r hydro -t hydro catkin` on `Tue, 19 Aug 2014 00:24:05 -0000`
