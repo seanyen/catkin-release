@@ -58,6 +58,17 @@ except ImportError as e:
 
 from catkin.cmake import get_cmake_path
 from catkin.terminal_color import ansi, disable_ANSI_colors, fmt, sanitize
+from catkin_pkg.workspaces import ensure_workspace_marker
+
+
+def determine_path_argument(cwd, base_path, argument, default):
+    if argument is None:
+        # if no argument is passed the default is relative to the base_path
+        path = os.path.join(base_path, default)
+    else:
+        # if an argument is passed it is relative to cwd (or absolute)
+        path = os.path.abspath(os.path.join(cwd, argument))
+    return path
 
 
 def split_arguments(args, splitter_name, default=None):
@@ -240,9 +251,9 @@ def get_python_install_dir():
     python_install_dir = 'lib'
     python_use_debian_layout = os.path.exists('/etc/debian_version')
     if os.name != 'nt':
-        python_version_xdoty = str(sys.version_info[0])
-        if not python_use_debian_layout:
-            python_version_xdoty += '.' + str(sys.version_info[1])
+        python_version_xdoty = str(sys.version_info[0]) + '.' + str(sys.version_info[1])
+        if python_use_debian_layout and sys.version_info[0] == 3:
+            python_version_xdoty = str(sys.version_info[0])
         python_install_dir = os.path.join(python_install_dir, 'python' + python_version_xdoty)
 
     python_packages_dir = 'dist-packages' if python_use_debian_layout else 'site-packages'
@@ -482,7 +493,7 @@ def build_cmake_package(
             'SETUP_FILENAME': 'setup'
         }
         if not os.path.exists(os.path.dirname(new_env_path)):
-            os.mkdir(os.path.dirname(new_env_path))
+            os.makedirs(os.path.dirname(new_env_path))
         with open(os.path.join(new_env_path), 'w') as f:
             f.write("""\
 #!/usr/bin/env sh
@@ -493,6 +504,9 @@ if [ $# -eq 0 ] ; then
   /bin/echo "Calling env.sh without arguments is not supported anymore. Instead spawn a subshell and source a setup file manually."
   exit 1
 fi
+
+# ensure to not use different shell type which was set before
+CATKIN_SHELL=sh
 
 # source {SETUP_FILENAME}.sh from same directory as this file
 . "$(cd "`dirname "$0"`" && pwd)/{SETUP_FILENAME}.sh"
@@ -703,18 +717,15 @@ def build_workspace_isolated(
 
     # Check source space existance
     if sourcespace is None:
-        ws_sourcespace = os.path.join(workspace, 'src')
-        if not os.path.exists(ws_sourcespace):
-            sys.exit("Could not find source space: {0}".format(sourcespace))
-        sourcespace = ws_sourcespace
-    sourcespace = os.path.abspath(sourcespace)
+        sourcespace = os.path.join(workspace, 'src')
+    if not os.path.exists(sourcespace):
+        sys.exit('Could not find source space: {0}'.format(sourcespace))
     print('Base path: ' + str(workspace))
     print('Source space: ' + str(sourcespace))
 
     # Check build space
     if buildspace is None:
         buildspace = os.path.join(workspace, 'build_isolated')
-    buildspace = os.path.abspath(buildspace)
     if not os.path.exists(buildspace):
         os.mkdir(buildspace)
     print('Build space: ' + str(buildspace))
@@ -722,13 +733,11 @@ def build_workspace_isolated(
     # Check devel space
     if develspace is None:
         develspace = os.path.join(workspace, 'devel_isolated')
-    develspace = os.path.abspath(develspace)
     print('Devel space: ' + str(develspace))
 
     # Check install space
     if installspace is None:
         installspace = os.path.join(workspace, 'install_isolated')
-    installspace = os.path.abspath(installspace)
     print('Install space: ' + str(installspace))
 
     if cmake_args:
@@ -776,6 +785,10 @@ def build_workspace_isolated(
     msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~' + ('~' * len(str(len(ordered_packages)))))
     msg.append('@{pf}~~@|  traversing %d packages in topological order:' % len(ordered_packages))
     for path, package in ordered_packages:
+        if path is None:
+            print(fmt('@{rf}Error: Circular dependency in subset of packages: @!%s@|' % package))
+            sys.exit('Can not build workspace with circular dependency')
+
         export_tags = [e.tagname for e in package.exports]
         if 'build_type' in export_tags:
             build_type_tag = [e.content for e in package.exports if e.tagname == 'build_type'][0]
@@ -808,6 +821,8 @@ def build_workspace_isolated(
     if not force_cmake and cmake_input_changed(packages, buildspace, cmake_args=cmake_args, filename='catkin_make_isolated'):
         print('The packages or cmake arguments have changed, forcing cmake invocation')
         force_cmake = True
+
+    ensure_workspace_marker(workspace)
 
     # Build packages
     pkg_develspace = None
@@ -943,7 +958,7 @@ def get_package_names_with_recursive_dependencies(packages, pkg_names):
         if pkg_name in packages_by_name:
             pkg = packages_by_name[pkg_name]
             dependencies.add(pkg_name)
-            for dep in [dep.name for dep in (pkg.build_depends + pkg.buildtool_depends + pkg.run_depends)]:
+            for dep in [dep.name for dep in (pkg.build_depends + pkg.buildtool_depends + pkg.run_depends + (pkg.test_depends if pkg.package_format > 1 else []))]:
                 if dep in packages_by_name and dep not in check_pkg_names and dep not in dependencies:
                     check_pkg_names.add(dep)
     return dependencies
