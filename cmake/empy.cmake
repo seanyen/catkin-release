@@ -20,20 +20,17 @@ function(find_python_module module)
   find_package_handle_standard_args(PY_${module} DEFAULT_MSG PY_${module_upper})
 endfunction(find_python_module)
 
-if(NOT EMPY_SCRIPT)
-  find_program(EMPY_EXECUTABLE empy)
-  if(NOT EMPY_EXECUTABLE)
-    # On OSX, there's an em.py, but not an executable empy script
-    find_python_module(em)
-    if(NOT PY_EM)
-      message(FATAL_ERROR "Unable to find either executable 'empy' or Python module 'em'... try installing the package 'python-empy'")
-    endif()
-    # ensure to use cmake-style path separators on Windows
-    file(TO_CMAKE_PATH "${PY_EM}" EMPY_SCRIPT)
+find_program(EMPY_EXECUTABLE empy)
+if(NOT EMPY_EXECUTABLE)
+  # On OSX, there's an em.py, but not executable empy
+  find_python_module(em)
+  if(NOT PY_EM)
+    message(FATAL_ERROR "Unable to find either executable 'empy' or Python module 'em'... try installing package 'python-empy'")
   else()
-    # ensure to use cmake-style path separators on Windows
-    file(TO_CMAKE_PATH "${EMPY_EXECUTABLE}" EMPY_SCRIPT)
+    file(TO_CMAKE_PATH "${PY_EM}" PY_EM)
+    set(EMPY_EXECUTABLE "${PYTHON_EXECUTABLE};${PY_EM}" CACHE STRING "Executable string for empy" FORCE)
   endif()
-  set(EMPY_SCRIPT "${EMPY_SCRIPT}" CACHE STRING "Empy script" FORCE)
+else()
+  # ensure to use cmake-style path separators on Windows
+  file(TO_CMAKE_PATH "${EMPY_EXECUTABLE}" EMPY_EXECUTABLE)
 endif()
-message(STATUS "Using empy: ${EMPY_SCRIPT}")
