@@ -1,10 +1,10 @@
-From 50a22da5bdd36aad57f6a4002d1c17b6451f2089 Mon Sep 17 00:00:00 2001
+From f11c2fc2e5f0b0ec8ecef4fb9ea6b39d603eac38 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@willowgarage.com>
 Date: Thu, 21 Mar 2013 18:46:48 -0700
 Subject: [PATCH 1/2] disable CATKIN_BUILD_BINARY_PACKAGE for groovy
 
 ---
- debian/rules.em |    2 +-
+ debian/rules.em | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules.em b/debian/rules.em
@@ -21,5 +21,5 @@ index d45dd5f..8de67c5 100755
  		-DCMAKE_PREFIX_PATH="@(InstallationPrefix)"
  
 -- 
-1.7.10.4
+1.9.1
 
