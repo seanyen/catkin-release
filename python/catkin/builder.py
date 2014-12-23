@@ -39,7 +39,7 @@ import platform
 import re
 import stat
 try:
-    from cStringIO import StringIO
+    from StringIO import StringIO
 except ImportError:
     from io import StringIO
 import subprocess
@@ -202,11 +202,24 @@ def run_command(cmd, cwd, quiet=False, colorize=False, add_env=None):
         while True:
             line = proc.stdout.readline()
             try:
-                # in case the input is already unicode
-                line = line.encode('utf8')
-            except (AttributeError, UnicodeDecodeError):
+                # try decoding in case the output is encoded
+                line = line.decode('utf8', 'replace')
+            except (AttributeError, UnicodeEncodeError):
+                # do nothing for Python 3 when line is already a str
+                # or when the string can't be decoded
                 pass
-            line = line.decode('utf8', 'replace')
+
+            # ensure that it is convertable to the target encoding
+            encoding = 'utf8'
+            try:
+                if out.encoding:
+                    encoding = out.encoding
+            except AttributeError:
+                # do nothing for Python 2
+                pass
+            line = line.encode(encoding, 'replace')
+            line = line.decode(encoding, 'replace')
+
             if proc.returncode is not None or not line:
                 break
             try:
@@ -246,6 +259,25 @@ def isolation_print_command(cmd, path=None, add_env=None):
     )
 
 
+def get_multiarch():
+    if not sys.platform.lower().startswith('linux'):
+        return ''
+    # this function returns the suffix for lib directories on supported systems or an empty string
+    # it uses two step approach to look for multiarch: first run gcc -print-multiarch and if
+    # failed try to run dpkg-architecture
+    p = subprocess.Popen(
+        ['gcc', '-print-multiarch'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    if p.returncode != 0:
+        out, err = subprocess.Popen(
+            ['dpkg-architecture', '-qDEB_HOST_MULTIARCH'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+
+    # be sure of returning empty string or a valid multiarch tuple format
+    assert(not out.strip() or out.strip().count('-') == 2);
+    return out.strip()
+
 def get_python_install_dir():
     # this function returns the same value as the CMake variable PYTHON_INSTALL_DIR from catkin/cmake/python.cmake
     python_install_dir = 'lib'
@@ -261,15 +293,8 @@ def get_python_install_dir():
     return python_install_dir
 
 
-def handle_make_arguments(input_make_args, force_single_threaded_when_running_tests=False):
+def handle_make_arguments(input_make_args):
     make_args = list(input_make_args)
-
-    if force_single_threaded_when_running_tests:
-        # force single threaded execution when running test since rostest does not support multiple parallel runs
-        run_tests = [a for a in make_args if a.startswith('run_tests')]
-        if run_tests:
-            print('Forcing "-j1" for running unit tests.')
-            make_args.append('-j1')
 
     # If no -j/--jobs/-l/--load-average flags are in make_args
     if not extract_jobs_flags(' '.join(make_args)):
@@ -309,7 +334,7 @@ def build_catkin_package(
     path, package,
     workspace, buildspace, develspace, installspace,
     install, force_cmake, quiet, last_env, cmake_args, make_args,
-    destdir=None
+    destdir=None, use_ninja=False
 ):
     cprint(
         "Processing @{cf}catkin@| package: '@!@{bf}" +
@@ -327,7 +352,11 @@ def build_catkin_package(
         )
 
     # Check for Makefile and maybe call cmake
-    makefile = os.path.join(build_dir, 'Makefile')
+    if not use_ninja:
+        makefile_name = 'Makefile'
+    else:
+        makefile_name = 'build.ninja'
+    makefile = os.path.join(build_dir, makefile_name)
     if not os.path.exists(makefile) or force_cmake:
         package_dir = os.path.dirname(package.filename)
         if not os.path.exists(os.path.join(package_dir, 'CMakeLists.txt')):
@@ -365,9 +394,12 @@ def build_catkin_package(
                 os.remove(makefile)
             raise
     else:
-        print('Makefile exists, skipping explicit cmake invocation...')
+        print('%s exists, skipping explicit cmake invocation...' % makefile_name)
         # Check to see if cmake needs to be run via make
-        make_check_cmake_cmd = ['make', 'cmake_check_build_system']
+        if not use_ninja:
+            make_check_cmake_cmd = ['make', 'cmake_check_build_system']
+        else:
+            make_check_cmake_cmd = ['ninja', 'build.ninja']
         add_env = get_additional_environment(install, destdir, installspace)
         isolation_print_command(' '.join(make_check_cmake_cmd), build_dir, add_env=add_env)
         if last_env is not None:
@@ -377,8 +409,12 @@ def build_catkin_package(
         )
 
     # Run make
-    make_cmd = ['make']
-    make_cmd.extend(handle_make_arguments(make_args, force_single_threaded_when_running_tests=True))
+    if not use_ninja:
+        make_executable = 'make'
+    else:
+        make_executable = 'ninja'
+    make_cmd = [make_executable]
+    make_cmd.extend(handle_make_arguments(make_args))
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
         make_cmd = [last_env] + make_cmd
@@ -386,19 +422,25 @@ def build_catkin_package(
 
     # Make install
     if install:
-        if has_make_target(build_dir, 'install'):
-            make_install_cmd = ['make', 'install']
+        if has_make_target(build_dir, 'install', use_ninja=use_ninja):
+            make_install_cmd = [make_executable, 'install']
             isolation_print_command(' '.join(make_install_cmd), build_dir)
             if last_env is not None:
                 make_install_cmd = [last_env] + make_install_cmd
             run_command(make_install_cmd, build_dir, quiet)
         else:
-            print(fmt('@{yf}Package has no "@{boldon}install@{boldoff}" target, skipping "make install" invocation...'))
+            print(fmt('@{yf}Package has no "@{boldon}install@{boldoff}" target, skipping "%s install" invocation...' % make_executable))
 
 
-def has_make_target(path, target):
-    output = run_command(['make', '-pn'], path, quiet=True)
+def has_make_target(path, target, use_ninja=False):
+    if not use_ninja:
+        output = run_command(['make', '-pn'], path, quiet=True)
+    else:
+        output = run_command(['ninja', '-t', 'targets'], path, quiet=True)
     lines = output.splitlines()
+    # strip nanja warnings since they look similar to targets
+    if use_ninja:
+        lines = [l for l in lines if not l.startswith('ninja: warning:')]
     targets = [m.group(1) for m in [re.match('^([a-zA-Z0-9][a-zA-Z0-9_\.]*):', l) for l in lines] if m]
     return target in targets
 
@@ -414,7 +456,7 @@ def build_cmake_package(
     path, package,
     workspace, buildspace, develspace, installspace,
     install, force_cmake, quiet, last_env, cmake_args, make_args,
-    destdir=None
+    destdir=None, use_ninja=False
 ):
     # Notify the user that we are processing a plain cmake package
     cprint(
@@ -435,7 +477,11 @@ def build_cmake_package(
                "'{0}'".format(last_env))
 
     # Check for Makefile and maybe call cmake
-    makefile = os.path.join(build_dir, 'Makefile')
+    if not use_ninja:
+        makefile_name = 'Makefile'
+    else:
+        makefile_name = 'build.ninja'
+    makefile = os.path.join(build_dir, makefile_name)
     install_target = installspace if install else develspace
     if not os.path.exists(makefile) or force_cmake:
         # Call cmake
@@ -450,9 +496,12 @@ def build_cmake_package(
             cmake_cmd = [last_env] + cmake_cmd
         run_command_colorized(cmake_cmd, build_dir, quiet)
     else:
-        print('Makefile exists, skipping explicit cmake invocation...')
+        print('%s exists, skipping explicit cmake invocation...' % makefile_name)
         # Check to see if cmake needs to be run via make
-        make_check_cmake_cmd = ['make', 'cmake_check_build_system']
+        if not use_ninja:
+            make_check_cmake_cmd = ['make', 'cmake_check_build_system']
+        else:
+            make_check_cmake_cmd = ['ninja', 'build.ninja']
         isolation_print_command(' '.join(make_check_cmake_cmd), build_dir)
         if last_env is not None:
             make_check_cmake_cmd = [last_env] + make_check_cmake_cmd
@@ -461,7 +510,11 @@ def build_cmake_package(
         )
 
     # Run make
-    make_cmd = ['make']
+    if not use_ninja:
+        make_executable = 'make'
+    else:
+        make_executable = 'ninja'
+    make_cmd = [make_executable]
     make_cmd.extend(handle_make_arguments(make_args))
     isolation_print_command(' '.join(make_cmd), build_dir)
     if last_env is not None:
@@ -472,7 +525,7 @@ def build_cmake_package(
         run_command(make_cmd, build_dir, quiet, add_env={'DESTDIR': ''})
 
     # Make install
-    make_install_cmd = ['make', 'install']
+    make_install_cmd = [make_executable, 'install']
     isolation_print_command(' '.join(make_install_cmd), build_dir)
     if last_env is not None:
         make_install_cmd = [last_env] + make_install_cmd
@@ -526,9 +579,12 @@ exec "$@"
         subs['ld_path'] = os.path.join(install_target, 'lib') + ":"
         pythonpath = os.path.join(install_target, get_python_install_dir())
         subs['pythonpath'] = pythonpath + ':'
-        subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig')
-        subs['pkgcfg_path'] += ":"
+        subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig') + ":"
         subs['path'] = os.path.join(install_target, 'bin') + ":"
+        arch = get_multiarch()
+        if arch:
+            subs['ld_path'] += os.path.join(install_target, 'lib', arch) + ":"
+            subs['pkgcfg_path'] += os.path.join(install_target, 'lib', arch, 'pkgconfig') + ":"
         if not os.path.exists(os.path.dirname(new_setup_path)):
             os.mkdir(os.path.dirname(new_setup_path))
         with open(new_setup_path, 'w') as file_handle:
@@ -582,10 +638,10 @@ def build_package(
     path, package,
     workspace, buildspace, develspace, installspace,
     install, force_cmake, quiet, last_env, cmake_args, make_args, catkin_make_args,
-    destdir=None,
+    destdir=None, use_ninja=False,
     number=None, of=None
 ):
-    if platform.system() in ['Linux', 'Darwin']:
+    if platform.system() in ['Linux', 'Darwin'] and sys.stdout.isatty():
         status_msg = '{package_name} [{number} of {total}]'.format(package_name=package.name, number=number, total=of)
         sys.stdout.write("\x1b]2;" + status_msg + "\x07")
     cprint('@!@{gf}==>@| ', end='')
@@ -596,7 +652,7 @@ def build_package(
             path, package,
             workspace, buildspace, develspace, installspace,
             install, force_cmake, quiet, last_env, cmake_args, make_args + catkin_make_args,
-            destdir=destdir
+            destdir=destdir, use_ninja=use_ninja
         )
         if not os.path.exists(new_last_env):
             raise RuntimeError(
@@ -610,7 +666,7 @@ def build_package(
             path, package,
             workspace, buildspace, develspace, installspace,
             install, force_cmake, quiet, last_env, cmake_args, make_args,
-            destdir=destdir
+            destdir=destdir, use_ninja=use_ninja
         )
     else:
         sys.exit('Can not build package with unknown build_type')
@@ -671,7 +727,8 @@ def build_workspace_isolated(
     catkin_make_args=None,
     continue_from_pkg=False,
     only_pkg_with_deps=None,
-    destdir=None
+    destdir=None,
+    use_ninja=False
 ):
     '''
     Runs ``cmake``, ``make`` and optionally ``make install`` for all
@@ -706,6 +763,7 @@ def build_workspace_isolated(
         recursive dependencies and ignore all other packages in the workspace,
         ``[str]``
     :param destdir: define DESTDIR for cmake/invocation, ``string``
+    :param use_ninja: if True, use ninja instead of make, ``bool``
     '''
     if not colorize:
         disable_ANSI_colors()
@@ -744,6 +802,15 @@ def build_workspace_isolated(
         print("Additional CMake Arguments: " + " ".join(cmake_args))
     else:
         cmake_args = []
+
+    if not [arg for arg in cmake_args if arg.startswith('-G')]:
+        if not use_ninja:
+            cmake_args += ['-G', 'Unix Makefiles']
+        else:
+            cmake_args += ['-G', 'Ninja']
+    elif use_ninja:
+        print(colorize_line("Error: either specify a generator using '-G...' or '--use-ninja' but not both"))
+        sys.exit(1)
 
     if make_args:
         print("Additional make Arguments: " + " ".join(make_args))
@@ -818,7 +885,12 @@ def build_workspace_isolated(
         sys.exit('Can not build workspace with packages of unknown build_type')
 
     # Check to see if the workspace has changed
-    if not force_cmake and cmake_input_changed(packages, buildspace, cmake_args=cmake_args, filename='catkin_make_isolated'):
+    cmake_args_with_spaces = list(cmake_args)
+    if develspace:
+        cmake_args_with_spaces.append('-DCATKIN_DEVEL_PREFIX=' + develspace)
+    if installspace:
+        cmake_args_with_spaces.append('-DCMAKE_INSTALL_PREFIX=' + installspace)
+    if not force_cmake and cmake_input_changed(packages, buildspace, cmake_args=cmake_args_with_spaces, filename='catkin_make_isolated'):
         print('The packages or cmake arguments have changed, forcing cmake invocation')
         force_cmake = True
 
@@ -843,7 +915,7 @@ def build_workspace_isolated(
                     workspace, buildspace, pkg_develspace, installspace,
                     install, force_cmake,
                     quiet, last_env, cmake_args, make_args, catkin_make_args,
-                    destdir=destdir,
+                    destdir=destdir, use_ninja=use_ninja,
                     number=index + 1, of=len(ordered_packages)
                 )
             except subprocess.CalledProcessError as e:
@@ -901,8 +973,10 @@ def build_workspace_isolated(
             if 'CMAKE_PREFIX_PATH' in os.environ.keys():
                 variables = {
                     'CATKIN_GLOBAL_BIN_DESTINATION': 'bin',
-                    'CATKIN_GLOBAL_LIB_DESTINATION': 'lib',
+                    'CATKIN_LIB_ENVIRONMENT_PATHS': "'lib'",
+                    'CATKIN_PKGCONFIG_ENVIRONMENT_PATHS': "os.path.join('lib', 'pkgconfig')",
                     'CMAKE_PREFIX_PATH_AS_IS': ';'.join(os.environ['CMAKE_PREFIX_PATH'].split(os.pathsep)),
+                    'PYTHON_EXECUTABLE': sys.executable,
                     'PYTHON_INSTALL_DIR': get_python_install_dir(),
                 }
                 with open(generated_setup_util_py, 'w') as f:
