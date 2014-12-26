@@ -29,7 +29,7 @@ mkdir -p obj-%{_target_platform} && cd obj-%{_target_platform}
         -DCMAKE_INSTALL_PREFIX="@(InstallationPrefix)" \
         -DCMAKE_PREFIX_PATH="@(InstallationPrefix)" \
         -DSETUPTOOLS_DEB_LAYOUT=OFF \
-        -DCATKIN_BUILD_BINARY_PACKAGE="1" \
+#        -DCATKIN_BUILD_BINARY_PACKAGE="1" \
 
 make %{?_smp_mflags}
 
