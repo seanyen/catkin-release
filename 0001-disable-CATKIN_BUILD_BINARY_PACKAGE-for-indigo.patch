@@ -1,4 +1,4 @@
-From a9d5f845bf438bd6ea8cbb99b9a564b6c12542f8 Mon Sep 17 00:00:00 2001
+From bebeceba1704c56022738fe46a85ac0349ca1196 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Wed, 29 Jan 2014 14:27:49 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for indigo
@@ -8,10 +8,10 @@ Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for indigo
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules.em b/debian/rules.em
-index 06777bd..253b807 100755
+index 991c991..4676f10 100755
 --- a/debian/rules.em
 +++ b/debian/rules.em
-@@ -25,9 +25,9 @@ override_dh_auto_configure:
+@@ -28,9 +28,9 @@ override_dh_auto_configure:
  	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
  	if [ -f "@(InstallationPrefix)/setup.sh" ]; then . "@(InstallationPrefix)/setup.sh"; fi && \
  	dh_auto_configure -- \
