@@ -1,3 +1,24 @@
+## catkin (hydro) - 0.5.90-0
+
+The packages in the `catkin` repository were released into the `hydro` distro by running `/usr/bin/bloom-release -r hydro -t hydro catkin` on `Mon, 29 Dec 2014 18:35:23 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.5.89-0`
+- old version: `0.5.89-0`
+- new version: `0.5.90-0`
+
+Versions of tools used:
+- bloom version: `0.5.16`
+- catkin_pkg version: `0.2.6`
+- rosdep version: `0.11.0`
+- rosdistro version: `0.4.0`
+- vcstools version: `0.1.36`
+
+
 ## catkin (indigo) - 0.6.11-0
 
 The packages in the `catkin` repository were released into the `indigo` distro by running `/usr/bin/bloom-release -r indigo -t indigo catkin` on `Mon, 29 Dec 2014 18:18:53 -0000`
