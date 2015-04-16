@@ -1,0 +1,12 @@
+Source: ros-jade-catkin
+Section: misc
+Priority: extra
+Maintainer: Dirk Thomas <dthomas@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), cmake, python-catkin-pkg (>= 0.2.2), python-empy, python-mock, python-nose
+Homepage: http://www.ros.org/wiki/catkin
+Standards-Version: 3.9.2
+
+Package: ros-jade-catkin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, cmake, libgtest-dev, python-catkin-pkg (>= 0.2.2), python-empy, python-nose
+Description: Low-level build system macros and infrastructure for ROS.
