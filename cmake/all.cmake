@@ -111,6 +111,7 @@ foreach(filename
     atomic_configure_file
     catkin_add_env_hooks
     catkin_destinations
+    catkin_download
     catkin_generate_environment
     catkin_install_python
     catkin_libraries
@@ -127,7 +128,6 @@ foreach(filename
     list_append_deduplicate
     list_append_unique
     list_insert_in_workspace_order
-    parse_arguments
     safe_execute_process
     stamp
     string_starts_with
@@ -136,7 +136,6 @@ foreach(filename
     platform/windows
     test/tests # defines CATKIN_ENABLE_TESTING, required by other test functions
     test/catkin_download_test_data
-    test/download_test_data
     test/gtest
     test/nosetests
     tools/doxygen
@@ -196,12 +195,9 @@ set(CATKIN_ENV ${SETUP_DIR}/env_cached.${script_ext} CACHE INTERNAL "catkin envi
 if(CATKIN_BUILD_BINARY_PACKAGE)
   set(catkin_skip_install_env_hooks "SKIP_INSTALL")
 endif()
-if(CMAKE_HOST_UNIX)
+if(CMAKE_HOST_UNIX AND PROJECT_NAME STREQUAL "catkin")
   catkin_add_env_hooks(05.catkin_make SHELLS bash DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
   catkin_add_env_hooks(05.catkin_make_isolated SHELLS bash DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
-  catkin_add_env_hooks(05.catkin-test-results SHELLS sh DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
-else()
-  catkin_add_env_hooks(05.catkin-test-results SHELLS bat DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
 endif()
 
 # requires stamp and environment files
