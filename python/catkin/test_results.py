@@ -113,12 +113,13 @@ def read_junit(filename):
     return (num_tests, num_errors, num_failures)
 
 
-def test_results(test_results_dir):
+def test_results(test_results_dir, show_verbose=False, show_all=False):
     '''
     Collects test results by parsing all xml files in given path,
     attempting to interpret them as junit results.
 
     :param test_results_dir: str foldername
+    :param show_verbose: bool show output for tests which had errors or failed
     :returns: dict {rel_path, (num_tests, num_errors, num_failures)}
     '''
     results = {}
@@ -131,9 +132,16 @@ def test_results(test_results_dir):
             try:
                 num_tests, num_errors, num_failures = read_junit(filename_abs)
             except Exception as e:
-                print('Skipping "%s": %s' % (name, str(e)))
+                if show_all:
+                    print('Skipping "%s": %s' % (name, str(e)))
                 continue
             results[name] = (num_tests, num_errors, num_failures)
+            if show_verbose and (num_errors + num_failures > 0):
+                print("Full test results for '%s'" % (name))
+                print('-------------------------------------------------')
+                with open(filename_abs, 'r') as f:
+                    print(f.read())
+                print('-------------------------------------------------')
     return results
 
 
