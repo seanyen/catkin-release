@@ -111,6 +111,7 @@ foreach(filename
     atomic_configure_file
     catkin_add_env_hooks
     catkin_destinations
+    catkin_download
     catkin_generate_environment
     catkin_install_python
     catkin_libraries
@@ -194,12 +195,9 @@ set(CATKIN_ENV ${SETUP_DIR}/env_cached.${script_ext} CACHE INTERNAL "catkin envi
 if(CATKIN_BUILD_BINARY_PACKAGE)
   set(catkin_skip_install_env_hooks "SKIP_INSTALL")
 endif()
-if(CMAKE_HOST_UNIX)
+if(CMAKE_HOST_UNIX AND PROJECT_NAME STREQUAL "catkin")
   catkin_add_env_hooks(05.catkin_make SHELLS bash DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
   catkin_add_env_hooks(05.catkin_make_isolated SHELLS bash DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
-  catkin_add_env_hooks(05.catkin-test-results SHELLS sh DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
-else()
-  catkin_add_env_hooks(05.catkin-test-results SHELLS bat DIRECTORY ${catkin_EXTRAS_DIR}/env-hooks ${catkin_skip_install_env_hooks})
 endif()
 
 # requires stamp and environment files
