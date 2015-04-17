@@ -1,3 +1,24 @@
+## catkin (indigo) - 0.6.13-0
+
+The packages in the `catkin` repository were released into the `indigo` distro by running `/usr/bin/bloom-release -r indigo -t indigo catkin` on `Fri, 17 Apr 2015 17:24:44 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.6.11-0`
+- old version: `0.6.12-0`
+- new version: `0.6.13-0`
+
+Versions of tools used:
+- bloom version: `0.5.19`
+- catkin_pkg version: `0.2.8`
+- rosdep version: `0.11.2`
+- rosdistro version: `0.4.2`
+- vcstools version: `0.1.36`
+
+
 ## catkin (jade) - 0.6.12-0
 
 The packages in the `catkin` repository were released into the `jade` distro by running `/usr/bin/bloom-release -r jade -t jade catkin` on `Thu, 16 Apr 2015 22:59:43 -0000`
