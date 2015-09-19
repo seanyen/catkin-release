@@ -1,4 +1,4 @@
-From ca252a48d825aa21bed143079a4f75b9926c7276 Mon Sep 17 00:00:00 2001
+From 3d3095468e3f727520bfa8804ce8f96cea4e827a Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 26 Dec 2014 10:12:50 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for jade on fedora
