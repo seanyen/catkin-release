@@ -52,6 +52,8 @@ import sys
 try:
     from catkin_pkg.cmake import configure_file, get_metapackage_cmake_template_path
     from catkin_pkg.packages import find_packages
+    from catkin_pkg.tool_detection import get_previous_tool_used_on_the_space
+    from catkin_pkg.tool_detection import mark_space_as_built_by
     from catkin_pkg.topological_order import topological_order_packages
 except ImportError as e:
     sys.exit(
@@ -279,8 +281,9 @@ def get_multiarch():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 
     # be sure of returning empty string or a valid multiarch tuple format
-    assert(not out.strip() or out.strip().count('-') == 2);
+    assert(not out.strip() or out.strip().count('-') == 2)
     return out.strip()
+
 
 def get_python_install_dir():
     # this function returns the same value as the CMake variable PYTHON_INSTALL_DIR from catkin/cmake/python.cmake
@@ -433,7 +436,9 @@ def build_catkin_package(
                 make_install_cmd = [last_env] + make_install_cmd
             run_command(make_install_cmd, build_dir, quiet)
         else:
-            print(fmt('@{yf}Package has no "@{boldon}install@{boldoff}" target, skipping "%s install" invocation...' % make_executable))
+            print(fmt(
+                '@{yf}Package has no "@{boldon}install@{boldoff}" target, skipping "%s install" invocation...'
+                % make_executable))
 
 
 def has_make_target(path, target, use_ninja=False):
@@ -558,7 +563,8 @@ def build_cmake_package(
 
 if [ $# -eq 0 ] ; then
   /bin/echo "Usage: env.sh COMMANDS"
-  /bin/echo "Calling env.sh without arguments is not supported anymore. Instead spawn a subshell and source a setup file manually."
+  /bin/echo "Calling env.sh without arguments is not supported anymore. \
+Instead spawn a subshell and source a setup file manually."
   exit 1
 fi
 
@@ -732,7 +738,8 @@ def build_workspace_isolated(
     continue_from_pkg=False,
     only_pkg_with_deps=None,
     destdir=None,
-    use_ninja=False
+    use_ninja=False,
+    override_build_tool_check=False
 ):
     '''
     Runs ``cmake``, ``make`` and optionally ``make install`` for all
@@ -768,6 +775,8 @@ def build_workspace_isolated(
         ``[str]``
     :param destdir: define DESTDIR for cmake/invocation, ``string``
     :param use_ninja: if True, use ninja instead of make, ``bool``
+    :param override_build_tool_check: if True, build even if a space was built
+        by another tool previously.
     '''
     if not colorize:
         disable_ANSI_colors()
@@ -792,10 +801,40 @@ def build_workspace_isolated(
         os.mkdir(buildspace)
     print('Build space: ' + str(buildspace))
 
+    # ensure the build space was previously built by catkin_make_isolated
+    previous_tool = get_previous_tool_used_on_the_space(buildspace)
+    if previous_tool is not None and previous_tool != 'catkin_make_isolated':
+        if override_build_tool_check:
+            print(fmt(
+                "@{yf}Warning: build space at '%s' was previously built by '%s', "
+                "but --override-build-tool-check was passed so continuing anyways."
+                % (buildspace, previous_tool)))
+        else:
+            sys.exit(fmt(
+                "@{rf}The build space at '%s' was previously built by '%s'. "
+                "Please remove the build space or pick a different build space."
+                % (buildspace, previous_tool)))
+    mark_space_as_built_by(buildspace, 'catkin_make_isolated')
+
     # Check devel space
     if develspace is None:
         develspace = os.path.join(workspace, 'devel_isolated')
     print('Devel space: ' + str(develspace))
+
+    # ensure the devel space was previously built by catkin_make_isolated
+    previous_tool = get_previous_tool_used_on_the_space(develspace)
+    if previous_tool is not None and previous_tool != 'catkin_make_isolated':
+        if override_build_tool_check:
+            print(fmt(
+                "@{yf}Warning: devel space at '%s' was previously built by '%s', "
+                "but --override-build-tool-check was passed so continuing anyways."
+                % (develspace, previous_tool)))
+        else:
+            sys.exit(fmt(
+                "@{rf}The devel space at '%s' was previously built by '%s'. "
+                "Please remove the devel space or pick a different devel space."
+                % (develspace, previous_tool)))
+    mark_space_as_built_by(develspace, 'catkin_make_isolated')
 
     # Check install space
     if installspace is None:
@@ -894,7 +933,10 @@ def build_workspace_isolated(
         cmake_args_with_spaces.append('-DCATKIN_DEVEL_PREFIX=' + develspace)
     if installspace:
         cmake_args_with_spaces.append('-DCMAKE_INSTALL_PREFIX=' + installspace)
-    if not force_cmake and cmake_input_changed(packages, buildspace, cmake_args=cmake_args_with_spaces, filename='catkin_make_isolated'):
+    if (
+        not force_cmake and
+        cmake_input_changed(packages, buildspace, cmake_args=cmake_args_with_spaces, filename='catkin_make_isolated')
+    ):
         print('The packages or cmake arguments have changed, forcing cmake invocation')
         force_cmake = True
 
@@ -988,7 +1030,9 @@ def build_workspace_isolated(
                     'PYTHON_INSTALL_DIR': get_python_install_dir(),
                 }
                 with open(generated_setup_util_py, 'w') as f:
-                    f.write(configure_file(os.path.join(get_cmake_path(), 'templates', '_setup_util.py.in'), variables))
+                    f.write(configure_file(
+                        os.path.join(get_cmake_path(), 'templates', '_setup_util.py.in'),
+                        variables))
                 os.chmod(generated_setup_util_py, stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR)
             else:
                 sys.exit("Unable to process CMAKE_PREFIX_PATH from environment. Cannot generate environment files.")
@@ -1001,7 +1045,9 @@ def build_workspace_isolated(
             variables = {'SETUP_DIR': develspace}
             for shell in ['sh', 'bash', 'zsh']:
                 with open(os.path.join(develspace, 'setup.%s' % shell), 'w') as f:
-                    f.write(configure_file(os.path.join(get_cmake_path(), 'templates', 'setup.%s.in' % shell), variables))
+                    f.write(configure_file(
+                        os.path.join(get_cmake_path(), 'templates', 'setup.%s.in' % shell),
+                        variables))
 
 
 def cmake_input_changed(packages, build_path, cmake_args=None, filename='catkin_make'):
@@ -1040,7 +1086,13 @@ def get_package_names_with_recursive_dependencies(packages, pkg_names):
         if pkg_name in packages_by_name:
             pkg = packages_by_name[pkg_name]
             dependencies.add(pkg_name)
-            for dep in [dep.name for dep in (pkg.build_depends + pkg.buildtool_depends + pkg.run_depends + (pkg.test_depends if pkg.package_format > 1 else []))]:
+            deps_to_iterate_over = (
+                pkg.build_depends +
+                pkg.buildtool_depends +
+                pkg.run_depends +
+                (pkg.test_depends if pkg.package_format > 1 else [])
+            )
+            for dep in [dep.name for dep in deps_to_iterate_over]:
                 if dep in packages_by_name and dep not in check_pkg_names and dep not in dependencies:
                     check_pkg_names.add(dep)
     return dependencies
