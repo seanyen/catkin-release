@@ -1,4 +1,4 @@
-From c3e34b1338f9722b0c5629144ee37fe240f27232 Mon Sep 17 00:00:00 2001
+From 42be1276726a2427eb2b9a63891858926d4e1fdf Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 26 Dec 2014 10:13:07 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for indigo on fedora
