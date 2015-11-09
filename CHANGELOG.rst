@@ -2,6 +2,10 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.6.16 (2015-11-09)
+-------------------
+* remove -x in Python distutils shell script (`#755 <https://github.com/ros/catkin/issues/755>`_)
+
 0.6.15 (2015-09-19)
 -------------------
 * adding check to prevent tool cross talk (`#743 <https://github.com/ros/catkin/issues/743>`_)
