@@ -4,9 +4,7 @@
 #
 # The signature:
 #
-#   catkin_install_python(PROGRAMS files... DESTINATION <dir>
-#     [OPTIONAL]
-#   )
+#   catkin_install_python(PROGRAMS files... DESTINATION <dir> [OPTIONAL])
 #
 # See the documentation for CMake install() function for more information.
 #
@@ -26,6 +24,7 @@ function(catkin_install_python signature)
       set(file "${CMAKE_CURRENT_SOURCE_DIR}/${file}")
     endif()
     if(EXISTS ${file})
+      stamp(${file})
       # read file and check shebang line
       file(READ ${file} data)
       set(regex "^#!/([^\r\n]+)/env python([\r\n])")
