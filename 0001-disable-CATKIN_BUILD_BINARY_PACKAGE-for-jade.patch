@@ -1,4 +1,4 @@
-From 11313ca426132c89269191205ab28129af0ddb21 Mon Sep 17 00:00:00 2001
+From 48516a940b383a4b32657e636a23eca1c36eb2fb Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Tue, 23 Dec 2014 17:40:31 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for jade
