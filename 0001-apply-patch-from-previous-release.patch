@@ -1,0 +1,27 @@
+From 4e7f5aa76e4db2e21f4e4b8097b2513014067159 Mon Sep 17 00:00:00 2001
+From: Dirk Thomas <dthomas@osrfoundation.org>
+Date: Fri, 4 Mar 2016 11:55:08 -0800
+Subject: [PATCH] apply patch from previous release
+
+---
+ debian/rules | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/debian/rules b/debian/rules
+index b165d11..1c79903 100755
+--- a/debian/rules
++++ b/debian/rules
+@@ -28,9 +28,9 @@ override_dh_auto_configure:
+ 	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
+ 	if [ -f "/opt/ros/kinetic/setup.sh" ]; then . "/opt/ros/kinetic/setup.sh"; fi && \
+ 	dh_auto_configure -- \
+-		-DCATKIN_BUILD_BINARY_PACKAGE="1" \
+ 		-DCMAKE_INSTALL_PREFIX="/opt/ros/kinetic" \
+ 		-DCMAKE_PREFIX_PATH="/opt/ros/kinetic"
++#		-DCATKIN_BUILD_BINARY_PACKAGE="1"
+ 
+ override_dh_auto_build:
+ 	# In case we're installing to a non-standard location, look for a setup.sh
+-- 
+1.9.1
+
