@@ -2,14 +2,9 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.7.1 (2016-03-18)
-------------------
+0.6.18 (2016-03-18)
+-------------------
 * expose format 2 style dependencies as CMake variables (`#787 <https://github.com/ros/catkin/issues/787>`_)
-
-0.7.0 (2016-03-04)
-------------------
-* remove CPATH from setup files (`#783 <https://github.com/ros/catkin/issues/783>`_)
-* use NO_MODULE to find exported catkin dependencies (`#760 <https://github.com/ros/catkin/issues/760>`_)
 
 0.6.17 (2016-03-03)
 -------------------
