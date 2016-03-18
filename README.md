@@ -1,3 +1,26 @@
+## catkin (jade) - 0.6.18-0
+
+The packages in the `catkin` repository were released into the `jade` distro by running `/usr/bin/bloom-release -r jade -t jade catkin` on `Fri, 18 Mar 2016 21:29:44 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.6.16-0`
+- old version: `0.6.17-0`
+- new version: `0.6.18-0`
+
+Versions of tools used:
+
+- bloom version: `0.5.21`
+- catkin_pkg version: `0.2.10`
+- rosdep version: `0.11.4`
+- rosdistro version: `0.4.4`
+- vcstools version: `0.1.38`
+
+
 ## catkin (kinetic) - 0.7.1-0
 
 The packages in the `catkin` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release -r kinetic -t kinetic catkin` on `Fri, 18 Mar 2016 21:22:35 -0000`
