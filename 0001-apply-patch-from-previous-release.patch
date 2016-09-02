@@ -1,4 +1,4 @@
-From 9c56e58c3a5121a44f47efd0ddd38e6c9a453370 Mon Sep 17 00:00:00 2001
+From ab8f4b8a497dfa66746efb3fba9af40ef5d36e48 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 4 Mar 2016 18:18:26 -0800
 Subject: [PATCH] apply patch from previous release
@@ -23,5 +23,5 @@ index b165d11..1c79903 100755
  override_dh_auto_build:
  	# In case we're installing to a non-standard location, look for a setup.sh
 -- 
-1.9.1
+2.7.4
 
