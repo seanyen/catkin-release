@@ -1,3 +1,26 @@
+## catkin (kinetic) - 0.7.3-0
+
+The packages in the `catkin` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release -r kinetic -t kinetic catkin` on `Mon, 19 Sep 2016 20:41:42 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.7.2-0`
+- old version: `0.7.2-0`
+- new version: `0.7.3-0`
+
+Versions of tools used:
+
+- bloom version: `0.5.22`
+- catkin_pkg version: `0.2.10`
+- rosdep version: `0.11.5`
+- rosdistro version: `0.4.7`
+- vcstools version: `0.1.39`
+
+
 ## catkin (kinetic) - 0.7.2-0
 
 The packages in the `catkin` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release -r kinetic -t kinetic catkin` on `Fri, 02 Sep 2016 18:14:54 -0000`
