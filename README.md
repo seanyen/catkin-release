@@ -1,3 +1,37 @@
+## catkin (lunar) - 0.7.5-0
+
+The packages in the `catkin` repository were released into the `lunar` distro by running the following custom commands on `Thu, 16 Feb 2017 17:00:00 -0000`:
+
+- `bloom-export-upstream file:///home/dthomas/ros/kinetic/github/ros/catkin git --tag 0.7.5 --display-uri git@github.com:ros/catkin.git --name catkin --output-dir /tmp/bloom-catkin-lunar`
+- `git-bloom-import-upstream /tmp/bloom-catkin-lunar/catkin-0.7.5.tar.gz --release-version 0.7.5 --replace`
+- `git-bloom-generate -y rosrelease lunar --source upstream -i 0`
+- `git-bloom-generate -y rosdebian --prefix release/lunar lunar -i 0 --os-name ubuntu`
+- `git checkout debian/lunar/catkin`
+- patch `debian/rules.em` (https://github.com/ros-gbp/catkin-release/commit/f91622a4b604f02600bf5ea6648c4fdb29fefada)
+- remove tags `debian/ros-lunar-catkin_0.7.5-0_*`
+- `git-bloom-generate -y rosdebian --prefix release/lunar lunar -i 0 --os-name ubuntu`
+- `git-bloom-generate -y rosdebian --prefix release/lunar lunar -i 0 --os-name debian`
+- `git-bloom-generate -y rosrpm --prefix release/lunar lunar -i 0`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `null`
+- old version: `None-0`
+- new version: `0.7.5-0`
+
+Versions of tools used:
+
+- bloom version: `0.5.23`
+- catkin_pkg version: `0.3.1`
+- rosdep version: `0.11.5`
+- rosdistro version: `0.5.0`
+- vcstools version: `0.1.39`
+
+
 ## catkin (kinetic) - 0.7.5-0
 
 The packages in the `catkin` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release -r kinetic -t kinetic catkin` on `Wed, 15 Feb 2017 00:24:02 -0000`
