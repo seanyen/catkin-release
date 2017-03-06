@@ -247,7 +247,7 @@ Public CMake functions / macros
 
 .. cmake:macro:: catkin_filter_libraries_for_build_configuration(VAR)
 
- *[function defined in catkin_libraries.cmake]*
+ *[macro defined in catkin_libraries.cmake]*
 
 
  Filter libraries based on optional build configuration keywords.
@@ -313,7 +313,7 @@ Public CMake functions / macros
 
 .. cmake:macro:: catkin_pack_libraries_with_build_configuration(VAR)
 
- *[function defined in catkin_libraries.cmake]*
+ *[macro defined in catkin_libraries.cmake]*
 
 
  Pack a list of libraries with optional build configuration keywords.
@@ -369,9 +369,7 @@ Public CMake functions / macros
  :param DEPENDS: a list of CMake projects which this project depends
    on.  Since they might not be *find_packagable* or lack a pkg-config
    file their ``INCLUDE_DIRS`` and ``LIBRARIES`` are passed directly.
-   This requires that it has been ``find_package``\ -ed before and all
-   variables (``<name>_FOUND``, ``<name>_INCLUDE_DIRS``, etc.) have the
-   same case as this argument.
+   This requires that it has been ``find_package``\ -ed before.
  :type DEPENDS: list of strings
  :param CFG_EXTRAS: a CMake file containing extra stuff that should
    be accessible to users of this package after
@@ -485,7 +483,7 @@ Public CMake functions / macros
 
 .. cmake:macro:: catkin_replace_imported_library_targets(VAR)
 
- *[function defined in catkin_libraries.cmake]*
+ *[macro defined in catkin_libraries.cmake]*
 
 
  Replace imported library target names with the library name.
@@ -504,7 +502,7 @@ Public CMake functions / macros
 
 .. cmake:macro:: catkin_unpack_libraries_with_build_configuration(VAR)
 
- *[function defined in catkin_libraries.cmake]*
+ *[macro defined in catkin_libraries.cmake]*
 
 
  Unpack a list of libraries with optional build configuration keyword prefixes.
@@ -748,7 +746,7 @@ Not documented CMake functions / macros
 
 .. cmake:macro:: _strip_path_prefix(var, value, prefix)
 
- *[function defined in test/nosetests.cmake]*
+ *[macro defined in test/nosetests.cmake]*
 
 .. _`assert_ref`:
 
@@ -793,7 +791,7 @@ Not documented CMake functions / macros
 
 .. cmake:macro:: catkin_doxygen(TARGET_NAME, SEARCH_DIRS)
 
- *[function defined in tools/doxygen.cmake]*
+ *[macro defined in tools/doxygen.cmake]*
 
 .. _`catkin_generate_environment_ref`:
 
@@ -829,7 +827,7 @@ Not documented CMake functions / macros
 
 .. cmake:macro:: debug_message(level)
 
- *[function defined in debug_message.cmake]*
+ *[macro defined in debug_message.cmake]*
 
 .. _`em_expand_ref`:
 
@@ -838,7 +836,7 @@ Not documented CMake functions / macros
 
 .. cmake:macro:: em_expand(context_in, context_out, em_file_in, file_out)
 
- *[function defined in em_expand.cmake]*
+ *[macro defined in em_expand.cmake]*
 
 .. _`find_program_required_ref`:
 
@@ -865,7 +863,7 @@ Not documented CMake functions / macros
 
 .. cmake:macro:: list_insert_in_workspace_order(listname)
 
- *[function defined in list_insert_in_workspace_order.cmake]*
+ *[macro defined in list_insert_in_workspace_order.cmake]*
 
 .. _`safe_execute_process_ref`:
 
@@ -874,7 +872,7 @@ Not documented CMake functions / macros
 
 .. cmake:macro:: safe_execute_process(cmd_keyword, arg1)
 
- *[function defined in safe_execute_process.cmake]*
+ *[macro defined in safe_execute_process.cmake]*
 
 .. _`shell_ref`:
 

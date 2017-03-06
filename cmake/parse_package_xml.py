@@ -98,14 +98,8 @@ def main(argv=sys.argv[1:]):
     args = parser.parse_args(argv)
     package = parse_package(args.package_xml)
 
-    # Force utf8 encoding for python3.
-    # This way unicode files can still be processed on non-unicode locales.
-    kwargs = {}
-    if sys.version_info.major >= 3:
-        kwargs['encoding'] = 'utf8'
-
     lines = _get_output(package)
-    with open(args.outfile, 'w', **kwargs) as ofile:
+    with open(args.outfile, 'w') as ofile:
         ofile.write('\n'.join(lines))
 
 

@@ -4,7 +4,7 @@
 # 2 Catkin developer use (Stuff working)
 # 3 Also Print True Assert Statements
 
-function(debug_message level)
+macro(debug_message level)
   set(loglevel ${CATKIN_LOG})
   if(NOT loglevel)
     set(loglevel 0)
@@ -13,4 +13,4 @@ function(debug_message level)
   if(NOT ${level} GREATER ${loglevel})
     message(STATUS "  ${ARGN}")
   endif()
-endfunction()
+endmacro()
