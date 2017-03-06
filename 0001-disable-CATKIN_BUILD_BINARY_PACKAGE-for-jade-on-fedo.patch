@@ -1,4 +1,4 @@
-From b09fd2d2754d37f8b463ef44002ae8c28d177939 Mon Sep 17 00:00:00 2001
+From d9485b864d3e04206b5672c1c904bd8208db3f8f Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 26 Dec 2014 10:12:50 -0800
 Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for jade on fedora
@@ -8,10 +8,10 @@ Subject: [PATCH] disable CATKIN_BUILD_BINARY_PACKAGE for jade on fedora
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/rpm/template.spec.em b/rpm/template.spec.em
-index 6fb5033..2b6d3d9 100644
+index a65a2a8..f60445f 100644
 --- a/rpm/template.spec.em
 +++ b/rpm/template.spec.em
-@@ -29,7 +29,7 @@ mkdir -p obj-%{_target_platform} && cd obj-%{_target_platform}
+@@ -30,7 +30,7 @@ mkdir -p obj-%{_target_platform} && cd obj-%{_target_platform}
          -DCMAKE_INSTALL_PREFIX="@(InstallationPrefix)" \
          -DCMAKE_PREFIX_PATH="@(InstallationPrefix)" \
          -DSETUPTOOLS_DEB_LAYOUT=OFF \
@@ -21,5 +21,5 @@ index 6fb5033..2b6d3d9 100644
  make %{?_smp_mflags}
  
 -- 
-1.9.1
+2.7.4
 
