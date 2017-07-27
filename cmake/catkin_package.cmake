@@ -235,6 +235,10 @@ function(_catkin_package)
   # package maintainer provided by package.cmake/xml
   set(PROJECT_MAINTAINER ${${PROJECT_NAME}_MAINTAINER})
 
+  # urls provided by package.cmake/xml
+  set(PROJECT_URL_WEBSITE ${${PROJECT_NAME}_URL_WEBSITE})
+  set(PROJECT_URL_BUGTRACKER ${${PROJECT_NAME}_URL_BUGTRACKER})
+
   # get library paths from all workspaces
   set(lib_paths "")
   foreach(workspace ${CATKIN_WORKSPACES})
@@ -265,12 +269,7 @@ function(_catkin_package)
   set(PKG_CONFIG_LIBRARIES_WITH_PREFIX "")
   catkin_filter_libraries_for_build_configuration(libraries ${PKG_CONFIG_LIBRARIES})
   foreach(library ${libraries})
-    if(IS_ABSOLUTE ${library})
-      get_filename_component(suffix ${library} EXT)
-      if(NOT "${suffix}" STREQUAL "${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set(library "-l:${library}")
-      endif()
-    else()
+    if(NOT IS_ABSOLUTE ${library})
       set(library "-l${library}")
     endif()
     list_append_deduplicate(PKG_CONFIG_LIBRARIES_WITH_PREFIX ${library})
@@ -412,7 +411,7 @@ function(_catkin_package)
     string_starts_with("${idir}/" "${CATKIN_DEVEL_PREFIX}/" _is_devel_prefix)
     if(_is_source_prefix OR _is_build_prefix OR _is_devel_prefix)
       # generated header files should be places in the devel space rather then in the build space
-      if(_is_build_prefix)
+      if(_is_build_prefix AND NOT _is_devel_prefix)
         message(WARNING "catkin_package() include dir '${idir}' should be placed in the devel space instead of the build space")
       endif()
       # the value doesn't matter as long as it doesn't match IS_ABSOLUTE
