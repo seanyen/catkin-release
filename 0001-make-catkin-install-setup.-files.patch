@@ -1,0 +1,27 @@
+From 173465df4c29c563119f42a7dabebe67a17de570 Mon Sep 17 00:00:00 2001
+From: William Woodall <william+github@osrfoundation.org>
+Date: Tue, 1 Aug 2017 11:42:59 -0700
+Subject: [PATCH] make catkin install setup.* files
+
+---
+ debian/rules.em | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/debian/rules.em b/debian/rules.em
+index 991c991..4676f10 100755
+--- a/debian/rules.em
++++ b/debian/rules.em
+@@ -28,9 +28,9 @@ override_dh_auto_configure:
+ 	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
+ 	if [ -f "@(InstallationPrefix)/setup.sh" ]; then . "@(InstallationPrefix)/setup.sh"; fi && \
+ 	dh_auto_configure -- \
+-		-DCATKIN_BUILD_BINARY_PACKAGE="1" \
+ 		-DCMAKE_INSTALL_PREFIX="@(InstallationPrefix)" \
+ 		-DCMAKE_PREFIX_PATH="@(InstallationPrefix)"
++#		-DCATKIN_BUILD_BINARY_PACKAGE="1"
+ 
+ override_dh_auto_build:
+ 	# In case we're installing to a non-standard location, look for a setup.sh
+-- 
+2.9.0
+
