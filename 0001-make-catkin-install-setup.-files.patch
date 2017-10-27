@@ -1,4 +1,4 @@
-From a6f833337328bd89f1332cda312602d9c72cc96f Mon Sep 17 00:00:00 2001
+From 7975beab4cf0bfab101309acae7e6b8d08219ba2 Mon Sep 17 00:00:00 2001
 From: William Woodall <william+github@osrfoundation.org>
 Date: Tue, 1 Aug 2017 11:42:59 -0700
 Subject: [PATCH] make catkin install setup.* files
@@ -23,5 +23,5 @@ index 991c991..4676f10 100755
  override_dh_auto_build:
  	# In case we're installing to a non-standard location, look for a setup.sh
 -- 
-2.9.0
+2.7.4
 
