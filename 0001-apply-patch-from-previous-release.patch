@@ -1,4 +1,4 @@
-From 421e50acde345efe3e417c270333b3b53f7a5e6d Mon Sep 17 00:00:00 2001
+From da2db714ae3b4b1c621ce9e6d1e3e71e1c45db92 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 4 Mar 2016 18:18:26 -0800
 Subject: [PATCH] apply patch from previous release
