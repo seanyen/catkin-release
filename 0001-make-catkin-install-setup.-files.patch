@@ -1,4 +1,4 @@
-From b14350056c92d2d058a3bbb6806f043b81b6e03d Mon Sep 17 00:00:00 2001
+From 67da8d1143e6bd616e3335f9e1604247dbc99193 Mon Sep 17 00:00:00 2001
 From: William Woodall <william+github@osrfoundation.org>
 Date: Tue, 1 Aug 2017 11:42:59 -0700
 Subject: [PATCH] make catkin install setup.* files
