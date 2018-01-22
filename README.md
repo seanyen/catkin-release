@@ -1,3 +1,45 @@
+## catkin (melodic) - 0.7.9-0
+
+The packages in the `catkin` repository were released into the `melodic` distro by running the following custom commands on `Mon, 1 Feb 2017 23:30:00 -0000`:
+
+- add melodic to the `tracks.yaml`
+- `cd  /tmp`
+- `git clone https://github.com/ros-gbp/catkin-release`
+- `cd  catkin-release`
+- `mkdir /tmp/bloom-catkin-melodic`
+- `bloom-export-upstream file:///home/dthomas/ros/melodic/github/ros/catkin git --tag 0.7.9 --display-uri git@github.com:ros/catkin.git --name catkin --output-dir /tmp/bloom-catkin-melodic`
+- `git-bloom-import-upstream /tmp/bloom-catkin-melodic/catkin-0.7.9.tar.gz --release-version 0.7.9 --replace`
+- `git-bloom-generate -y rosrelease melodic --source upstream -i 0`
+- `git-bloom-generate -y rosdebian --prefix release/melodic melodic -i 0 --os-name ubuntu`
+- `git checkout debian/melodic/catkin`
+- patch `debian/rules.em` (https://github.com/ros-gbp/catkin-release/commit/f91622a4b604f02600bf5ea6648c4fdb29fefada)
+- remove tags `debian/ros-melodic-catkin_0.7.9-0_*`
+- `git-bloom-generate -y rosdebian --prefix release/melodic melodic -i 0 --os-name ubuntu`
+- `git-bloom-generate -y rosdebian --prefix release/melodic melodic -i 0 --os-name debian`
+- `git-bloom-generate -y rosrpm --prefix release/melodic melodic -i 0`
+- `git push --all`
+- `git push --tags`
+- add this section to the `README.md`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `null`
+- old version: `None-0`
+- new version: `0.7.9-0`
+
+Versions of tools used:
+
+- bloom version: `0.6.2`
+- catkin_pkg version: `0.4.0`
+- rosdep version: `0.11.8`
+- rosdistro version: `0.6.4`
+- vcstools version: `0.1.40`
+
+
 ## catkin (lunar) - 0.7.9-0
 
 The packages in the `catkin` repository were released into the `lunar` distro by running `/usr/bin/bloom-release -r lunar -t lunar catkin` on `Mon, 22 Jan 2018 21:16:20 -0000`
