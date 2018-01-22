@@ -1,4 +1,4 @@
-From 95aef613ecd9d5f3997240615cc78317d52acab2 Mon Sep 17 00:00:00 2001
+From 06279bb720963622a9b1068899780a28687baea3 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 4 Mar 2016 11:55:37 -0800
 Subject: [PATCH] apply patch from previous release
@@ -8,10 +8,10 @@ Subject: [PATCH] apply patch from previous release
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules b/debian/rules
-index b165d11..1c79903 100755
+index 9483e3e..a0aac73 100755
 --- a/debian/rules
 +++ b/debian/rules
-@@ -28,9 +28,9 @@ override_dh_auto_configure:
+@@ -27,9 +27,9 @@ override_dh_auto_configure:
  	# set things like CMAKE_PREFIX_PATH, PKG_CONFIG_PATH, and PYTHONPATH.
  	if [ -f "/opt/ros/kinetic/setup.sh" ]; then . "/opt/ros/kinetic/setup.sh"; fi && \
  	dh_auto_configure -- \
