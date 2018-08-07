@@ -70,6 +70,16 @@ if(_index EQUAL -1)
   list(INSERT CMAKE_PREFIX_PATH 0 ${CATKIN_DEVEL_PREFIX})
 endif()
 
+# set CATKIN_INSTALL_INTO_PREFIX_ROOT based on CATKIN_BUILD_BINARY_PACKAGE
+# if not defined already
+if(NOT DEFINED CATKIN_INSTALL_INTO_PREFIX_ROOT)
+  if(CATKIN_BUILD_BINARY_PACKAGE)
+    set(CATKIN_INSTALL_INTO_PREFIX_ROOT FALSE)
+  else()
+    set(CATKIN_INSTALL_INTO_PREFIX_ROOT TRUE)
+  endif()
+endif()
+
 
 # enable all new policies (if available)
 macro(_set_cmake_policy_to_new_if_available policy)
@@ -118,6 +128,8 @@ foreach(filename
     catkin_metapackage
     catkin_package
     catkin_package_xml
+    custom_install # required by catkin_symlink_install and test/gtest
+    catkin_symlink_install
     catkin_workspace
     debug_message
     em_expand
@@ -192,7 +204,7 @@ configure_file(${catkin_EXTRAS_DIR}/templates/env.${script_ext}.in
 set(CATKIN_ENV ${SETUP_DIR}/env_cached.${script_ext} CACHE INTERNAL "catkin environment")
 
 # add additional environment hooks
-if(CATKIN_BUILD_BINARY_PACKAGE)
+if(NOT CATKIN_INSTALL_INTO_PREFIX_ROOT)
   set(catkin_skip_install_env_hooks "SKIP_INSTALL")
 endif()
 if(CMAKE_HOST_UNIX AND PROJECT_NAME STREQUAL "catkin")
