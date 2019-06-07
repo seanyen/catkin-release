@@ -1,4 +1,4 @@
-From 9553d3c5b90ad107393ad63d6ffab7beff259d4e Mon Sep 17 00:00:00 2001
+From aacbd8f43728a2170e9c5d013f9cec3ed143e576 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dthomas@osrfoundation.org>
 Date: Fri, 4 Mar 2016 11:55:37 -0800
 Subject: [PATCH] apply patch from previous release
@@ -8,7 +8,7 @@ Subject: [PATCH] apply patch from previous release
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/debian/rules b/debian/rules
-index 9483e3e..a0aac73 100755
+index 9483e3ee..a0aac73e 100755
 --- a/debian/rules
 +++ b/debian/rules
 @@ -27,9 +27,9 @@ override_dh_auto_configure:
