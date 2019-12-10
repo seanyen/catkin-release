@@ -1,3 +1,26 @@
+## catkin (melodic) - 0.7.20-1
+
+The packages in the `catkin` repository were released into the `melodic` distro by running `/usr/bin/bloom-release -r melodic -t melodic catkin` on `Tue, 10 Dec 2019 19:33:08 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.7.19-1`
+- old version: `0.7.19-1`
+- new version: `0.7.20-1`
+
+Versions of tools used:
+
+- bloom version: `0.9.0`
+- catkin_pkg version: `0.4.14`
+- rosdep version: `0.18.0`
+- rosdistro version: `0.7.5`
+- vcstools version: `0.1.42`
+
+
 ## catkin (melodic) - 0.7.19-1
 
 The packages in the `catkin` repository were released into the `melodic` distro by running `/home/dthomas/ros/github/ros-infrastructure/bloom/scripts/bloom-release -r melodic -t melodic catkin` on `Tue, 08 Oct 2019 13:54:25 -0000`
