@@ -63,6 +63,7 @@ except ImportError as e:
     )
 
 from catkin.cmake import get_cmake_path
+from catkin_pkg.package import InvalidPackage
 from catkin_pkg.terminal_color import ansi, disable_ANSI_colors, fmt, sanitize
 from catkin_pkg.workspaces import ensure_workspace_marker
 
@@ -730,7 +731,10 @@ def build_package(
         sys.stdout.write("\x1b]2;" + status_msg + "\x07")
     cprint('@!@{gf}==>@| ', end='')
     new_last_env = get_new_env(package, develspace, installspace, install, last_env, destdir)
-    build_type = _get_build_type(package)
+    try:
+        build_type = package.get_build_type()
+    except InvalidPackage as e:
+        sys.exit(str(e))
     if build_type == 'catkin':
         build_catkin_package(
             path, package,
@@ -766,7 +770,10 @@ def build_package(
 def get_new_env(package, develspace, installspace, install, last_env, destdir=None):
     env_script = 'env.bat' if sys.platform == 'win32' else 'env.sh'
     new_env = None
-    build_type = _get_build_type(package)
+    try:
+        build_type = package.get_build_type()
+    except InvalidPackage as e:
+        sys.exit(str(e))
     if build_type in ['catkin', 'cmake']:
         new_env = os.path.join(
             installspace if install else develspace,
@@ -786,13 +793,6 @@ def prefix_destdir(path, destdir=None):
     return path
 
 
-def _get_build_type(package):
-    build_type = 'catkin'
-    if 'build_type' in [e.tagname for e in package.exports]:
-        build_type = [e.content for e in package.exports if e.tagname == 'build_type'][0]
-    return build_type
-
-
 def _print_build_error(package, e):
     e_msg = 'KeyboardInterrupt' if isinstance(e, KeyboardInterrupt) else str(e)
     cprint('@{rf}@!<==@| Failed to process package \'@!@{bf}' + package.name + '@|\': \n  ' + e_msg)
@@ -809,6 +809,7 @@ def build_workspace_isolated(
     force_cmake=False,
     colorize=True,
     build_packages=None,
+    ignore_packages=None,
     quiet=False,
     cmake_args=None,
     make_args=None,
@@ -970,8 +971,12 @@ def build_workspace_isolated(
         if unknown_packages:
             sys.exit('Packages not found in the workspace: %s' % ', '.join(unknown_packages))
 
+    # evaluate conditions
+    for package in packages.values():
+        package.evaluate_conditions(os.environ)
+
     # Report topological ordering
-    ordered_packages = topological_order_packages(packages)
+    ordered_packages = topological_order_packages(packages, blacklisted=ignore_packages)
     unknown_build_types = []
     msg = []
     msg.append('@{pf}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~' + ('~' * len(str(len(ordered_packages)))))
@@ -1216,7 +1221,7 @@ def get_package_names_with_recursive_dependencies(packages, pkg_names):
                 pkg.run_depends +
                 (pkg.test_depends if pkg.package_format > 1 else [])
             )
-            for dep in [dep.name for dep in deps_to_iterate_over]:
+            for dep in [dep.name for dep in deps_to_iterate_over if dep.evaluated_condition is not False]:
                 if dep in packages_by_name and dep not in check_pkg_names and dep not in dependencies:
                     check_pkg_names.add(dep)
     return dependencies
