@@ -270,7 +270,8 @@ function(_catkin_package)
   catkin_filter_libraries_for_build_configuration(libraries ${PKG_CONFIG_LIBRARIES})
   foreach(library ${libraries})
     if(NOT IS_ABSOLUTE ${library})
-      if(NOT ${library} MATCHES "^-l")
+      # Append -l to anything that's not a linker flag
+      if(NOT ${library} MATCHES "^-")
         set(library "-l${library}")
       endif()
     endif()
@@ -400,7 +401,7 @@ function(_catkin_package)
   set(INSTALLSPACE TRUE)
 
   set(PROJECT_SPACE_DIR ${CMAKE_INSTALL_PREFIX})
-  set(PKG_INCLUDE_PREFIX ${PROJECT_SPACE_DIR})
+  set(PKG_INCLUDE_PREFIX "\\\${prefix}")
 
   # absolute path to include dir under install prefix if any include dir is set
   set(PROJECT_CMAKE_CONFIG_INCLUDE_DIRS "")
