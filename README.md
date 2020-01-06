@@ -1,3 +1,45 @@
+## catkin (noetic) - 0.7.20-0
+
+The packages in the `catkin` repository were released into the `melodic` distro by running the following custom commands on `Mon, 1 Jan 2020 11:59:00 -0000`:
+
+- add Noetic to the `tracks.yaml`
+- `cd  /tmp`
+- `git clone https://github.com/ros-gbp/catkin-release`
+- `cd  catkin-release`
+- `mkdir /tmp/bloom-catkin-noetic`
+- `bloom-export-upstream file:///home/dthomas/ros/noetic/github/ros/catkin git --tag 0.7.20 --display-uri git@github.com:ros/catkin.git --name catkin --output-dir /tmp/bloom-catkin-noetic`
+- `git-bloom-import-upstream /tmp/bloom-catkin-noetic/catkin-0.7.20.tar.gz --release-version 0.7.20 --replace`
+- `git-bloom-generate -y rosrelease noetic --source upstream -i 0`
+- `git-bloom-generate -y rosdebian --prefix release/noetic noetic -i 0 --os-name ubuntu`
+- `git checkout debian/noetic/catkin`
+- patch `debian/rules.em` (https://github.com/ros-gbp/catkin-release/commit/f91622a4b604f02600bf5ea6648c4fdb29fefada)
+- `git tag --delete $(git tag --list | grep "debian/ros-noetic-catkin_0.7.20-0_")`
+- `git-bloom-generate -y rosdebian --prefix release/noetic noetic -i 0 --os-name ubuntu`
+- `git-bloom-generate -y rosdebian --prefix release/noetic noetic -i 0 --os-name debian`
+- `git-bloom-generate -y rosrpm --prefix release/noetic noetic -i 0`
+- `git push --all`
+- `git push --tags`
+- add this section to the `README.md`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `null`
+- old version: `None-0`
+- new version: `0.7.20-0`
+
+Versions of tools used:
+
+- bloom version: `0.9.0`
+- catkin_pkg version: `0.4.14`
+- rosdep version: `0.16.1`
+- rosdistro version: `0.8.0`
+- vcstools version: `0.1.42`
+
+
 ## catkin (kinetic) - 0.7.20-1
 
 The packages in the `catkin` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release -r kinetic -t kinetic catkin` on `Fri, 13 Dec 2019 20:12:55 -0000`
