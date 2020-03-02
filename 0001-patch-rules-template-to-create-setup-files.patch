@@ -1,4 +1,4 @@
-From dfffa96094a1f246054d972a0f8c44ba2be386a9 Mon Sep 17 00:00:00 2001
+From d2feb4983ccffb085677ef0f4fbbf09ea32a6261 Mon Sep 17 00:00:00 2001
 From: Dirk Thomas <dirk-thomas@users.noreply.github.com>
 Date: Mon, 22 Jan 2018 13:54:39 -0800
 Subject: [PATCH] patch rules template to create setup files
@@ -23,5 +23,5 @@ index 1c02dd40..2b5074ae 100755
  override_dh_auto_build:
  	# In case we're installing to a non-standard location, look for a setup.sh
 -- 
-2.17.1
+2.25.0
 
