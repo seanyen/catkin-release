@@ -2,6 +2,25 @@
 Changelog for package catkin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.7.22 (2020-03-02)
+-------------------
+* [Windows] rename catkin scripts for parallel package parsing support (`#1066 <https://github.com/ros/catkin/issues/1066>`_)
+* allow flexible CMake minimum version in metapackage CMake code (`#1065 <https://github.com/ros/catkin/issues/1065>`_)
+* [Windows] generate executables without extension name (`#1061 <https://github.com/ros/catkin/issues/1061>`_, `#1063 <https://github.com/ros/catkin/issues/1063>`_)
+* fix CATKIN_INSTALL_INTO_PREFIX_ROOT for win32 (`#1059 <https://github.com/ros/catkin/issues/1059>`_)
+* various code cleanup (`#1055 <https://github.com/ros/catkin/issues/1055>`_)
+* make catkin_install_python code a little clearer (`#1054 <https://github.com/ros/catkin/issues/1054>`_)
+
+0.7.21 (2020-01-23)
+-------------------
+* bump CMake minimum version in tests and docs (`#1053 <https://github.com/ros/catkin/issues/1053>`_)
+* bump CMake minimum version to use new behavior of CMP0048 (`#1052 <https://github.com/ros/catkin/issues/1052>`_)
+* Prefer setuptools with Python 3 (`#1048 <https://github.com/ros/catkin/issues/1048>`_)
+* Support use of gmake on FreeBSD (`#1051 <https://github.com/ros/catkin/issues/1051>`_)
+* Fix if statement in catkin_libraries (`#1050 <https://github.com/ros/catkin/issues/1050>`_)
+* Update gtest config documentation (`#1046 <https://github.com/ros/catkin/issues/1046>`_)
+* Contributors: Dirk Thomas, Matt Reynolds, Shane Loretz, dodsonmg, poggenhans
+
 0.7.20 (2019-12-10)
 -------------------
 * fix checking dependency conditions (`#1041 <https://github.com/ros/catkin/issues/1041>`_)
