@@ -165,7 +165,7 @@ tracks:
     - git-bloom-generate -y rosrpm --prefix release/:{ros_distro} :{ros_distro} -i
       :{release_inc}
     devel_branch: kinetic-devel
-    last_version: 0.7.20
+    last_version: 0.7.22
     name: catkin
     patches: null
     release_inc: '1'
