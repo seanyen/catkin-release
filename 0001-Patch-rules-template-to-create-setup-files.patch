@@ -1,4 +1,4 @@
-From c160c41ce0285906a0ea9ec9d12770a2c88a697b Mon Sep 17 00:00:00 2001
+From 98d384942f14e789b709cd6d244d72a1494a5c7c Mon Sep 17 00:00:00 2001
 From: Shane Loretz <sloretz@osrfoundation.org>
 Date: Mon, 6 Jan 2020 11:32:09 -0800
 Subject: [PATCH] Patch rules template to create setup files
@@ -24,5 +24,5 @@ index 1c02dd40..cf3f353a 100755
  override_dh_auto_build:
  	# In case we're installing to a non-standard location, look for a setup.sh
 -- 
-2.17.1
+2.25.0
 
