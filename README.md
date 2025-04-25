@@ -1,3 +1,26 @@
+## catkin (noetic) - 0.8.12-1
+
+The packages in the `catkin` repository were released into the `noetic` distro by running `/usr/bin/bloom-release --rosdistro noetic catkin` on `Fri, 25 Apr 2025 23:26:16 -0000`
+
+The `catkin` package was released.
+
+Version of package(s) in repository `catkin`:
+
+- upstream repository: git@github.com:ros/catkin.git
+- release repository: https://github.com/ros-gbp/catkin-release.git
+- rosdistro version: `0.8.11-1`
+- old version: `0.8.11-1`
+- new version: `0.8.12-1`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `1.0.0`
+- rosdep version: `0.25.1`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## catkin (noetic) - 0.8.11-1
 
 The packages in the `catkin` repository were released into the `noetic` distro by running `/usr/bin/bloom-release -r noetic catkin` on `Thu, 10 Apr 2025 18:33:39 -0000`
